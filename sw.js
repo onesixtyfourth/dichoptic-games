@@ -10,6 +10,10 @@ const ASSETS = [
   'js/games/words.js',
   'manifest.webmanifest',
   'icon.svg',
+  'icon-180.png',
+  'icon-192.png',
+  'icon-512.png',
+  'icon-maskable-512.png',
 ];
 
 self.addEventListener('install', e => {

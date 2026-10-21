@@ -190,6 +190,7 @@ Then open `http://localhost:8080`. Offline support and screen wake lock need HTT
 | `sw.js`                | Service worker for offline use                               |
 | `manifest.webmanifest` | App manifest for installing to home screen                   |
 | `icon.svg`             | App icon                                                     |
+| `icon-*.png`           | App icon as PNG for iPhone home screens and Android installs |
 | `docs/`                | Category and game pages, with screenshots                    |
 
 ## Adding a game
