@@ -1823,4 +1823,249 @@
       },
     });
   }
+
+  {
+    const GW = 8;
+    const GH = 11;
+    const BAR = 11.25;
+    const WAYPOINTS = [[1.5, -0.5], [1.5, 2.5], [6.5, 2.5], [6.5, 5.5], [1.5, 5.5], [1.5, 8.5], [6.5, 8.5], [6.5, 11]];
+    const TOWERS = [
+      { name: 'Bolt', cost: 10, range: 2.2, damage: 4, rate: 0.45, colour: [255, 220, 80] },
+      { name: 'Cannon', cost: 20, range: 2, damage: 9, rate: 1.3, splash: 0.9, colour: [255, 140, 80] },
+      { name: 'Frost', cost: 15, range: 1.8, damage: 1.5, rate: 0.8, slow: 1.6, colour: [120, 220, 255] },
+    ];
+    const KINDS = {
+      normal: { hp: 1, speed: 1.2, bounty: 2 },
+      fast: { hp: 0.55, speed: 2.1, bounty: 2 },
+      tank: { hp: 3.2, speed: 0.75, bounty: 5 },
+    };
+    const SEGMENTS = [];
+    let PATH_LENGTH = 0;
+    for (let i = 1; i < WAYPOINTS.length; i++) {
+      const [x1, y1] = WAYPOINTS[i - 1];
+      const [x2, y2] = WAYPOINTS[i];
+      const len = Math.hypot(x2 - x1, y2 - y1);
+      SEGMENTS.push({ x1, y1, x2, y2, start: PATH_LENGTH, len });
+      PATH_LENGTH += len;
+    }
+    const pointAt = d => {
+      const s = SEGMENTS.find(q => d <= q.start + q.len) || SEGMENTS[SEGMENTS.length - 1];
+      const t = util.clamp((d - s.start) / s.len, 0, 1);
+      return [s.x1 + (s.x2 - s.x1) * t, s.y1 + (s.y2 - s.y1) * t];
+    };
+    const ON_PATH = new Set();
+    for (let d = 0; d <= PATH_LENGTH; d += 0.25) {
+      const [x, y] = pointAt(d);
+      if (y >= 0 && y < GH) ON_PATH.add(`${Math.floor(x)},${Math.floor(y)}`);
+    }
+
+    DG.register({
+      id: 'towerdefence',
+      name: 'Tower Defence',
+      category: 'Strategy',
+      description: 'Build towers along the road to stop every wave of invaders.',
+      help: 'Choose a tower at the bottom, then tap an empty square to build it. Tap a tower to upgrade it. Tap Go (or wait) to send the next wave. Invaders that reach the bottom cost a life. Your weaker eye sees the invaders; your stronger eye sees the road, towers and their shots.',
+      width: GW,
+      height: 12.5,
+      buttons: ['left', 'up', 'down', 'right', 'action'],
+      labels: { action: 'Build' },
+      repeat: ['left', 'up', 'down', 'right'],
+      create(api) {
+        const d = api.difficulty;
+        const BREAK = [20, 15, 10][d];
+        const g = { score: 0 };
+        const cur = { x: 3, y: 9 };
+        let money = [60, 50, 40][d];
+        let lives = [15, 10, 6][d];
+        let wave = 0;
+        let towers = [];
+        let enemies = [];
+        let effects = [];
+        let queue = [];
+        let spawnIn = 0;
+        let breakTime = BREAK;
+        let building = true;
+        let type = 0;
+        let showCursor = false;
+        let focus = null;
+
+        const towerAt = (x, y) => towers.find(t => t.x === x && t.y === y);
+        const stats = t => {
+          const base = TOWERS[t.type];
+          return { ...base, damage: base.damage * 1.6 ** (t.level - 1), range: base.range + 0.3 * (t.level - 1) };
+        };
+        const upgradeCost = t => TOWERS[t.type].cost * t.level;
+
+        function startWave() {
+          if (!building) return;
+          building = false;
+          wave++;
+          const hp = 10 * [1.14, 1.17, 1.2][d] ** (wave - 1) * [0.75, 1, 1.3][d];
+          const count = 6 + wave * 2;
+          queue = [];
+          for (let i = 0; i < count; i++) {
+            let kind = 'normal';
+            if (wave % 3 === 0 && i % 2 === 0) kind = 'fast';
+            if (wave >= 4 && i % Math.max(3, 8 - Math.floor(wave / 3)) === 0) kind = 'tank';
+            queue.push({ kind, hp: hp * KINDS[kind].hp });
+          }
+          spawnIn = 0.5;
+        }
+
+        function tapCell(x, y) {
+          if (ON_PATH.has(`${x},${y}`)) return;
+          const t = towerAt(x, y);
+          if (t) {
+            focus = { t, time: 1.5 };
+            if (t.level < 3 && money >= upgradeCost(t)) {
+              money -= upgradeCost(t);
+              t.level++;
+            }
+            return;
+          }
+          if (money < TOWERS[type].cost) return;
+          money -= TOWERS[type].cost;
+          const nt = { x, y, type, level: 1, cool: 0 };
+          towers.push(nt);
+          focus = { t: nt, time: 1.5 };
+        }
+
+        function tapBar(i) {
+          if (i < 3) type = i;
+          else startWave();
+        }
+
+        function hit(e, dmg) {
+          e.hp -= dmg;
+          if (e.hp <= 0 && !e.dead) {
+            e.dead = true;
+            money += KINDS[e.kind].bounty + Math.floor(wave / 4);
+          }
+        }
+
+        g.pointer = (type2, x, y) => {
+          if (type2 !== 'down') return;
+          showCursor = false;
+          if (y >= BAR && x >= 0 && x < GW) tapBar(Math.floor(x / 2));
+          else if (x >= 0 && y >= 0 && x < GW && y < GH) tapCell(Math.floor(x), Math.floor(y));
+        };
+        g.action = a => {
+          showCursor = true;
+          if (moveCursor(cur, a, GW, GH + 1)) return;
+          if (a !== 'action') return;
+          if (cur.y === GH) tapBar(Math.floor(cur.x / 2));
+          else tapCell(cur.x, cur.y);
+        };
+
+        g.update = dt => {
+          if (focus && (focus.time -= dt) <= 0) focus = null;
+          effects.forEach(f => { f.t -= dt; });
+          effects = effects.filter(f => f.t > 0);
+          if (building) {
+            breakTime -= dt;
+            if (breakTime <= 0) startWave();
+            return;
+          }
+          if (queue.length) {
+            spawnIn -= dt;
+            if (spawnIn <= 0) {
+              const q = queue.shift();
+              enemies.push({ ...q, max: q.hp, dist: 0, slow: 0 });
+              spawnIn = q.kind === 'fast' ? 0.45 : 0.75;
+            }
+          }
+          for (const e of enemies) {
+            e.slow = Math.max(0, e.slow - dt);
+            e.dist += KINDS[e.kind].speed * (e.slow > 0 ? 0.5 : 1) * dt;
+            if (e.dist >= PATH_LENGTH && !e.dead) {
+              e.dead = true;
+              e.escaped = true;
+              lives--;
+            }
+          }
+          for (const t of towers) {
+            t.cool -= dt;
+            if (t.cool > 0) continue;
+            const s = stats(t);
+            const cx = t.x + 0.5;
+            const cy = t.y + 0.5;
+            let target = null;
+            for (const e of enemies) {
+              if (e.dead) continue;
+              const [ex, ey] = pointAt(e.dist);
+              if (Math.hypot(ex - cx, ey - cy) <= s.range && (!target || e.dist > target.dist)) target = e;
+            }
+            if (!target) continue;
+            t.cool = s.rate;
+            const [tx, ty] = pointAt(target.dist);
+            if (s.splash) {
+              for (const e of enemies) {
+                const [ex, ey] = pointAt(e.dist);
+                if (!e.dead && Math.hypot(ex - tx, ey - ty) <= s.splash) hit(e, s.damage);
+              }
+              effects.push({ kind: 'blast', x: tx, y: ty, r: s.splash, t: 0.25 });
+            } else {
+              if (s.slow) target.slow = s.slow;
+              hit(target, s.damage);
+              effects.push({ kind: 'beam', x1: cx, y1: cy, x2: tx, y2: ty, colour: s.colour, t: 0.1 });
+            }
+          }
+          enemies = enemies.filter(e => !e.dead);
+          if (lives <= 0) {
+            api.gameOver(`The invaders got through on wave ${wave}`);
+            return;
+          }
+          if (!queue.length && !enemies.length) {
+            g.score = wave;
+            money += 10 + wave * 2;
+            building = true;
+            breakTime = BREAK;
+          }
+        };
+
+        function towerShape(rd, t, x, y, size, target, strength = 1) {
+          const col = TOWERS[t].colour;
+          if (t === 0) rd.circle(x, y, size, target, col, strength);
+          else if (t === 1) rd.rect(x - size, y - size, size * 2, size * 2, target, col, strength);
+          else rd.poly([x, y - size * 1.25, x + size * 1.1, y, x, y + size * 1.25, x - size * 1.1, y], target, col, strength);
+        }
+
+        g.draw = rd => {
+          for (const key of ON_PATH) {
+            const [x, y] = key.split(',').map(Number);
+            rd.rect(x, y, 1, 1, 'fellow', [150, 120, 80], 0.45);
+          }
+          rd.lines([0, GH, GW, GH], 0.04, 'both', WHITE, 0.4);
+          for (const t of towers) {
+            towerShape(rd, t.type, t.x + 0.5, t.y + 0.5, 0.28, 'fellow');
+            for (let i = 0; i < t.level; i++) rd.circle(t.x + 0.25 + i * 0.25, t.y + 0.88, 0.06, 'fellow', WHITE);
+          }
+          if (focus) rd.ring(focus.t.x + 0.5, focus.t.y + 0.5, stats(focus.t).range, 0.04, 'both', WHITE, 0.5);
+          for (const e of enemies) {
+            const [x, y] = pointAt(e.dist);
+            const col = e.slow > 0 ? [150, 200, 255] : e.kind === 'fast' ? [255, 170, 60] : e.kind === 'tank' ? [220, 90, 255] : [255, 80, 80];
+            if (e.kind === 'fast') rd.poly([x, y - 0.25, x + 0.24, y + 0.2, x - 0.24, y + 0.2], 'amb', col);
+            else if (e.kind === 'tank') rd.rect(x - 0.3, y - 0.3, 0.6, 0.6, 'amb', col);
+            else rd.circle(x, y, 0.24, 'amb', col);
+            rd.rect(x - 0.3, y - 0.45, 0.6 * Math.max(0, e.hp / e.max), 0.06, 'amb', WHITE, 0.8);
+          }
+          for (const f of effects) {
+            if (f.kind === 'beam') rd.line(f.x1, f.y1, f.x2, f.y2, 0.06, 'fellow', f.colour, f.t * 8);
+            else rd.ring(f.x, f.y, f.r, 0.07, 'fellow', TOWERS[1].colour, f.t * 4);
+          }
+          TOWERS.forEach((tw, i) => {
+            const x = i * 2;
+            rd.box(x + 0.08, BAR, 1.84, 1.15, i === type ? 0.08 : 0.03, 'both', WHITE, i === type ? 0.9 : 0.3);
+            towerShape(rd, i, x + 0.55, BAR + 0.57, 0.22, 'fellow', money >= tw.cost ? 1 : 0.35);
+            rd.text(tw.cost, x + 1.35, BAR + 0.6, 0.38, 'both', WHITE, money >= tw.cost ? 0.9 : 0.4);
+          });
+          rd.box(6.08, BAR, 1.84, 1.15, 0.05, 'both', WHITE, building ? 0.8 : 0.2);
+          rd.text(building ? `Go ${Math.ceil(breakTime)}` : 'Wave', 7, BAR + 0.6, 0.38, 'both', WHITE, building ? 0.9 : 0.4);
+          if (showCursor) rd.box(cur.y === GH ? Math.floor(cur.x / 2) * 2 + 0.02 : cur.x + 0.04, cur.y === GH ? BAR - 0.06 : cur.y + 0.04, cur.y === GH ? 1.96 : 0.92, cur.y === GH ? 1.27 : 0.92, 0.05, 'both', WHITE, 0.9);
+        };
+        g.hud = () => [building ? `Wave ${wave + 1} next` : `Wave ${wave}`, `Lives ${lives}`, `Gold ${money}`];
+        return g;
+      },
+    });
+  }
 })();
