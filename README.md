@@ -1,25 +1,27 @@
 ---
-title: Dichoptic Tetris
-description: Tetris played as a dichoptic exercise on a mobile phone, using coloured anaglyph glasses or a VR viewer
-ms.date: 2026-10-20
+title: Dichoptic Games
+description: Games played as dichoptic exercises on a mobile phone, using coloured anaglyph glasses or a VR viewer
+ms.date: 2026-10-21
 keywords:
   - amblyopia
   - dichoptic
-  - tetris
+  - games
   - pwa
 ---
 
-Tetris on your phone, set up as a dichoptic exercise. Each eye sees a different part of the game, so the two eyes have to work together to play.
+Games on your phone, set up as dichoptic exercises. Each eye sees a different part of the game, so the two eyes have to work together to play.
+
+The first game is **Blocks**, a falling-block puzzle game.
 
 > [!IMPORTANT]
-> Play now at **<https://onesixtyfourth.github.io/dichoptic-tetris/>**
+> Play now at **<https://onesixtyfourth.github.io/dichoptic-games/>**
 
 > [!CAUTION]
 > This app is not a medical device. Use it only as directed by your orthoptist or eye-care professional, and follow their advice on contrast settings and session length.
 
 ## How it works
 
-The game splits what you see between your two eyes:
+Blocks splits what you see between your two eyes:
 
 | What you see                                   | Which eye sees it                           |
 |------------------------------------------------|---------------------------------------------|
@@ -38,7 +40,7 @@ To place pieces well you need information from both eyes at the same time. Lower
 
 ## Getting started
 
-1. Open <https://onesixtyfourth.github.io/dichoptic-tetris/> on your phone.
+1. Open <https://onesixtyfourth.github.io/dichoptic-games/> on your phone.
 2. Optionally install it as an app:
    * On Android (Chrome), open the menu and choose **Add to Home screen** or **Install app**.
    * On iPhone (Safari), tap **Share** then **Add to Home Screen**.
@@ -122,7 +124,7 @@ The game also pauses automatically if you switch apps or lock the phone, and kee
 3. Tap **Play**. The game goes full screen and switches to landscape where the phone allows it.
 4. Place the phone in the viewer.
 
-The left half of the screen is shown to the left eye and the right half to the right eye. Pieces keep their normal Tetris colours in this mode.
+The left half of the screen is shown to the left eye and the right half to the right eye. Pieces keep their normal colours in this mode.
 
 ## Running locally
 

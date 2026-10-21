@@ -5,7 +5,7 @@ const ROWS = 20;
 // Grey shared by both eyes; an element is hidden from an eye when that eye's filtered channels equal BG.
 const BG = 64;
 const WHITE = [255, 255, 255];
-const STORAGE_KEY = 'dichoptic-tetris-settings';
+const STORAGE_KEY = 'dichoptic-games-settings';
 const REPEAT_DELAY = 170;
 const REPEAT_RATE = 50;
 const REPEATABLE = new Set(['left', 'right', 'down']);
