@@ -50,6 +50,8 @@ To place pieces well you need information from both eyes at the same time. Lower
 
 Once installed, the app works offline. Settings are saved on your phone.
 
+When you open the app with an internet connection it always loads the latest version. Without a connection it uses the last version it downloaded.
+
 ## Settings
 
 | Setting                          | Description                                                                                                  |
