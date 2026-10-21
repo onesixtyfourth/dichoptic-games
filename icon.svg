@@ -12,6 +12,7 @@
     <use href="#eye" fill="#ffffff" stroke="#1a1a1a" stroke-width="12"/>
     <g clip-path="url(#eye-clip)">
       <circle cx="12" cy="14" r="58" fill="#ff3030"/>
+      <circle cx="12" cy="14" r="27" fill="#111111"/>
       <circle cx="-8" cy="-10" r="20" fill="#ffffff"/>
       <circle cx="32" cy="36" r="9" fill="#ffffff"/>
     </g>
@@ -20,6 +21,7 @@
     <use href="#eye" fill="#ffffff" stroke="#1a1a1a" stroke-width="12"/>
     <g clip-path="url(#eye-clip)">
       <circle cx="-12" cy="14" r="58" fill="#3050ff"/>
+      <circle cx="-12" cy="14" r="27" fill="#111111"/>
       <circle cx="-32" cy="-10" r="20" fill="#ffffff"/>
       <circle cx="8" cy="36" r="9" fill="#ffffff"/>
     </g>
