@@ -884,4 +884,92 @@
       return g;
     },
   });
+
+  DG.register({
+    id: 'whack',
+    name: 'Whack-a-Mole',
+    category: 'Arcade',
+    description: 'Tap the moles before they hide. Leave the bombs alone!',
+    help: 'Tap each mole as it pops up \u2013 you have one minute. Don\u2019t tap the spiky bombs. Moles appear to either your weaker or your stronger eye, so keep both working.',
+    width: 3,
+    height: 4,
+    buttons: ['left', 'up', 'down', 'right', 'action'],
+    labels: { action: 'Whack' },
+    create(api) {
+      const [C, R] = [[3, 3], [3, 4], [4, 4]][api.difficulty];
+      const LENGTH = 60;
+      const life = [1.6, 1.25, 1.0][api.difficulty];
+      const g = { score: 0, width: C, height: R };
+      const cur = { x: 0, y: 0 };
+      let moles = [];
+      let spawn = 0.5;
+      let t = 0;
+      let misses = 0;
+      let showCursor = false;
+
+      function whack(i) {
+        const mole = moles.find(o => o.i === i);
+        if (!mole) return;
+        moles = moles.filter(o => o !== mole);
+        g.score = mole.bomb ? Math.max(0, g.score - 3) : g.score + 1;
+      }
+
+      g.update = dt => {
+        t += dt;
+        if (t >= LENGTH) {
+          api.gameOver(`Time\u2019s up \u2013 ${g.score} hits, ${misses} missed`);
+          return;
+        }
+        moles.forEach(o => { o.age += dt; });
+        misses += moles.filter(o => !o.bomb && o.age >= o.life).length;
+        moles = moles.filter(o => o.age < o.life);
+        spawn -= dt;
+        if (spawn <= 0) {
+          spawn = Math.max(0.35, 0.9 - t * 0.008);
+          const free = [];
+          for (let i = 0; i < C * R; i++) if (!moles.some(o => o.i === i)) free.push(i);
+          if (free.length) {
+            moles.push({ i: util.pick(free), age: 0, life: life * util.rand(0.8, 1.2), bomb: Math.random() < 0.18, eye: Math.random() < 0.5 ? 'amb' : 'fellow' });
+          }
+        }
+      };
+      g.pointer = (type, x, y) => {
+        if (type !== 'down' || x < 0 || y < 0 || x >= C || y >= R) return;
+        showCursor = false;
+        whack(Math.floor(y) * C + Math.floor(x));
+      };
+      g.action = a => {
+        showCursor = true;
+        const d = { left: [-1, 0], right: [1, 0], up: [0, -1], down: [0, 1] }[a];
+        if (d) {
+          cur.x = util.clamp(cur.x + d[0], 0, C - 1);
+          cur.y = util.clamp(cur.y + d[1], 0, R - 1);
+        } else if (a === 'action') {
+          whack(cur.y * C + cur.x);
+        }
+      };
+      g.draw = rd => {
+        for (let i = 0; i < C * R; i++) rd.ring((i % C) + 0.5, Math.floor(i / C) + 0.62, 0.36, 0.03, 'both', WHITE, 0.3);
+        for (const o of moles) {
+          const x = (o.i % C) + 0.5;
+          const y = Math.floor(o.i / C) + 0.55;
+          const size = 0.3 * Math.min(1, o.age / 0.12, (o.life - o.age) / 0.12);
+          if (o.bomb) {
+            const spikes = [];
+            for (let k = 0; k < 8; k++) {
+              const a = (k * Math.PI) / 4;
+              spikes.push(x, y, x + Math.cos(a) * size * 1.4, y + Math.sin(a) * size * 1.4);
+            }
+            rd.lines(spikes, 0.05, o.eye, [255, 80, 80]);
+            rd.circle(x, y, size * 0.75, o.eye, [255, 80, 80]);
+          } else {
+            rd.circle(x, y, size, o.eye, [200, 150, 90]);
+          }
+        }
+        if (showCursor) rd.box(cur.x + 0.04, cur.y + 0.04, 0.92, 0.92, 0.04, 'both', WHITE, 0.7);
+      };
+      g.hud = () => [`Hits ${g.score}`, `Missed ${misses}`, `${Math.ceil(LENGTH - t)}s`];
+      return g;
+    },
+  });
 })();

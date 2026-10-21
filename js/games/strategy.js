@@ -837,4 +837,335 @@
       return g;
     },
   });
+
+  DG.register({
+    id: 'checkers',
+    name: 'Checkers',
+    category: 'Strategy',
+    description: 'Jump the computer\u2019s pieces to capture them all.',
+    help: 'Tap one of your pieces, then a marked square. Pieces move diagonally forward; jumps are compulsory and can chain. Reach the far side to make a king (shown with a ring), which moves both ways. Your pieces are shown to your weaker eye and the computer\u2019s to your stronger eye.',
+    width: 8,
+    height: 8,
+    buttons: ['left', 'up', 'down', 'right', 'action'],
+    labels: { action: 'Select' },
+    repeat: ['left', 'up', 'down', 'right'],
+    create(api) {
+      const N = 8;
+      const g = {};
+      const cur = { x: 0, y: 7 };
+      let board;
+      let sel = null;
+      let plies = 0;
+      let lastMove = null;
+      let showCursor = false;
+      const m = match(g, () => {
+        board = util.grid(N, N, null);
+        for (let y = 0; y < N; y++) {
+          for (let x = 0; x < N; x++) {
+            if ((x + y) % 2 === 0) continue;
+            if (y < 3) board[y][x] = { p: CPU, king: false };
+            else if (y > 4) board[y][x] = { p: YOU, king: false };
+          }
+        }
+        sel = null;
+        plies = 0;
+        lastMove = null;
+      });
+
+      const inside = (x, y) => x >= 0 && y >= 0 && x < N && y < N;
+      const kingRow = p => (p === YOU ? 0 : N - 1);
+      const dirsOf = pc => (pc.king ? [[1, 1], [-1, 1], [1, -1], [-1, -1]] : pc.p === YOU ? [[1, -1], [-1, -1]] : [[1, 1], [-1, 1]]);
+      const clone = b => b.map(row => row.map(c => c && { ...c }));
+      const endOf = mv => mv.path[mv.path.length - 1];
+
+      // Collects maximal jump sequences; a man that reaches the far row stops there.
+      function jumps(b, x, y, pc, path, caps, out) {
+        let extended = false;
+        if (pc.king || caps.length === 0 || y !== kingRow(pc.p)) {
+          for (const [dx, dy] of dirsOf(pc)) {
+            const mx = x + dx;
+            const my = y + dy;
+            const tx = x + 2 * dx;
+            const ty = y + 2 * dy;
+            if (!inside(tx, ty) || b[ty][tx]) continue;
+            const mid = b[my][mx];
+            if (!mid || mid.p === pc.p || caps.some(([cx, cy]) => cx === mx && cy === my)) continue;
+            extended = true;
+            jumps(b, tx, ty, pc, [...path, [tx, ty]], [...caps, [mx, my]], out);
+          }
+        }
+        if (!extended && caps.length) out.push({ path, caps });
+      }
+
+      function movesFor(b, p) {
+        const caps = [];
+        const simple = [];
+        for (let y = 0; y < N; y++) {
+          for (let x = 0; x < N; x++) {
+            const pc = b[y][x];
+            if (!pc || pc.p !== p) continue;
+            b[y][x] = null;
+            jumps(b, x, y, pc, [[x, y]], [], caps);
+            b[y][x] = pc;
+            for (const [dx, dy] of dirsOf(pc)) {
+              if (inside(x + dx, y + dy) && !b[y + dy][x + dx]) simple.push({ path: [[x, y], [x + dx, y + dy]], caps: [] });
+            }
+          }
+        }
+        return caps.length ? caps : simple;
+      }
+
+      function apply(b, mv) {
+        const [sx, sy] = mv.path[0];
+        const [ex, ey] = endOf(mv);
+        const pc = { ...b[sy][sx] };
+        b[sy][sx] = null;
+        mv.caps.forEach(([cx, cy]) => { b[cy][cx] = null; });
+        if (ey === kingRow(pc.p)) pc.king = true;
+        b[ey][ex] = pc;
+      }
+
+      function evaluate(b) {
+        let s = 0;
+        for (const row of b) for (const c of row) if (c) s += (c.p === CPU ? 1 : -1) * (c.king ? 1.6 : 1);
+        return s;
+      }
+
+      // Minimax score from the computer's point of view.
+      function search(b, depth, p, alpha, beta) {
+        const moves = movesFor(b, p);
+        if (!moves.length) return p === CPU ? -100 - depth : 100 + depth;
+        if (depth === 0) return evaluate(b);
+        let best = p === CPU ? -Infinity : Infinity;
+        for (const mv of moves) {
+          const c = clone(b);
+          apply(c, mv);
+          const s = search(c, depth - 1, 3 - p, alpha, beta);
+          if (p === CPU) {
+            best = Math.max(best, s);
+            alpha = Math.max(alpha, s);
+          } else {
+            best = Math.min(best, s);
+            beta = Math.min(beta, s);
+          }
+          if (alpha >= beta) break;
+        }
+        return best;
+      }
+
+      function play(mv, p) {
+        apply(board, mv);
+        lastMove = mv;
+        plies = mv.caps.length ? 0 : plies + 1;
+        sel = null;
+        if (!movesFor(board, 3 - p).length) m.finish(p);
+        else if (plies >= 80) m.finish('draw');
+        else m.next(3 - p);
+      }
+
+      function cpuMove() {
+        const moves = movesFor(board, CPU);
+        if (api.difficulty === 0 && Math.random() < 0.5) {
+          play(util.pick(moves), CPU);
+          return;
+        }
+        const depth = [1, 3, 5][api.difficulty];
+        let best = -Infinity;
+        let choice = moves[0];
+        for (const mv of moves) {
+          const c = clone(board);
+          apply(c, mv);
+          const s = search(c, depth - 1, YOU, -Infinity, Infinity) + Math.random() * 0.01;
+          if (s > best) {
+            best = s;
+            choice = mv;
+          }
+        }
+        play(choice, CPU);
+      }
+
+      function tap(x, y) {
+        if (!m.canPlay()) return;
+        const moves = movesFor(board, YOU);
+        if (moves.some(mv => mv.path[0][0] === x && mv.path[0][1] === y)) {
+          sel = [x, y];
+          return;
+        }
+        if (!sel) return;
+        const mv = moves.find(o => o.path[0][0] === sel[0] && o.path[0][1] === sel[1] && endOf(o)[0] === x && endOf(o)[1] === y);
+        if (mv) play(mv, YOU);
+        else sel = null;
+      }
+
+      g.update = dt => m.update(dt, cpuMove);
+      g.pointer = (type, x, y) => {
+        if (type !== 'down' || !inside(Math.floor(x), Math.floor(y))) return;
+        showCursor = false;
+        tap(Math.floor(x), Math.floor(y));
+      };
+      g.action = a => {
+        showCursor = true;
+        if (!moveCursor(cur, a, N, N) && a === 'action') tap(cur.x, cur.y);
+      };
+      g.draw = rd => {
+        for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) if ((x + y) % 2) rd.rect(x, y, 1, 1, 'both', WHITE, 0.07);
+        if (lastMove) {
+          const segs = [];
+          for (let i = 0; i < lastMove.path.length - 1; i++) segs.push(...lastMove.path[i].map(v => v + 0.5), ...lastMove.path[i + 1].map(v => v + 0.5));
+          rd.lines(segs, 0.05, 'both', WHITE, 0.3);
+        }
+        board.forEach((row, y) => row.forEach((pc, x) => {
+          if (!pc) return;
+          const target = pc.p === YOU ? 'amb' : 'fellow';
+          const col = pc.p === YOU ? [255, 80, 80] : [80, 160, 255];
+          if (pc.king) {
+            rd.circle(x + 0.5, y + 0.5, 0.26, target, col);
+            rd.ring(x + 0.5, y + 0.5, 0.4, 0.06, target, col);
+          } else {
+            rd.circle(x + 0.5, y + 0.5, 0.38, target, col);
+          }
+        }));
+        if (sel) {
+          rd.box(sel[0] + 0.03, sel[1] + 0.03, 0.94, 0.94, 0.06, 'both', WHITE, 0.9);
+          movesFor(board, YOU)
+            .filter(mv => mv.path[0][0] === sel[0] && mv.path[0][1] === sel[1])
+            .forEach(mv => rd.circle(endOf(mv)[0] + 0.5, endOf(mv)[1] + 0.5, 0.12, 'both', WHITE, 0.7));
+        }
+        if (showCursor) rd.box(cur.x + 0.08, cur.y + 0.08, 0.84, 0.84, 0.04, 'both', WHITE, 0.6);
+      };
+      g.hud = m.hud;
+      m.start();
+      return g;
+    },
+  });
+
+  DG.register({
+    id: 'battleships',
+    name: 'Battleships',
+    category: 'Strategy',
+    description: 'Find and sink the computer\u2019s fleet before it sinks yours.',
+    help: 'Tap a square in the top grid to fire. A cross is a hit and a dot is a miss. Your own fleet is in the bottom grid. Your weaker eye sees the hits; your stronger eye sees the misses and your ships.',
+    width: 8,
+    height: 16.6,
+    buttons: ['left', 'up', 'down', 'right', 'action'],
+    labels: { action: 'Fire' },
+    repeat: ['left', 'up', 'down', 'right'],
+    create(api) {
+      const N = 8;
+      const SHIPS = [4, 3, 3, 2, 2];
+      const BOTTOM = N + 0.6;
+      const g = {};
+      const cur = { x: 0, y: 0 };
+      let mine;
+      let theirs;
+      let targets = [];
+      let showCursor = false;
+
+      function fleet() {
+        const ships = [];
+        const used = util.grid(N, N, false);
+        for (const len of SHIPS) {
+          for (;;) {
+            const across = Math.random() < 0.5;
+            const x = util.randInt(across ? N - len + 1 : N);
+            const y = util.randInt(across ? N : N - len + 1);
+            const cells = Array.from({ length: len }, (_, k) => (across ? [x + k, y] : [x, y + k]));
+            if (cells.some(([cx, cy]) => used[cy][cx])) continue;
+            cells.forEach(([cx, cy]) => { used[cy][cx] = true; });
+            ships.push({ cells, sunk: false });
+            break;
+          }
+        }
+        return { ships, shots: util.grid(N, N, 0) };
+      }
+
+      const m = match(g, () => {
+        mine = fleet();
+        theirs = fleet();
+        targets = [];
+      });
+
+      const allSunk = side => side.ships.every(s => s.sunk);
+
+      // Marks the shot (1 = miss, 2 = hit) and returns the ship hit, if any.
+      function fire(side, x, y) {
+        const ship = side.ships.find(s => s.cells.some(([cx, cy]) => cx === x && cy === y));
+        side.shots[y][x] = ship ? 2 : 1;
+        if (ship && ship.cells.every(([cx, cy]) => side.shots[cy][cx] === 2)) ship.sunk = true;
+        return ship;
+      }
+
+      function cpuMove() {
+        targets = targets.filter(([tx, ty]) => !mine.shots[ty][tx]);
+        let shot;
+        if (api.difficulty > 0 && targets.length) {
+          shot = targets.shift();
+        } else {
+          const open = [];
+          for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) if (!mine.shots[y][x]) open.push([x, y]);
+          const parity = open.filter(([x, y]) => (x + y) % 2 === 0);
+          shot = util.pick(api.difficulty === 2 && parity.length ? parity : open);
+        }
+        const [x, y] = shot;
+        const ship = fire(mine, x, y);
+        if (ship && !ship.sunk) {
+          for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+            const nx = x + dx;
+            const ny = y + dy;
+            if (nx >= 0 && ny >= 0 && nx < N && ny < N && !mine.shots[ny][nx]) targets.push([nx, ny]);
+          }
+        }
+        if (allSunk(mine)) m.finish(CPU);
+        else m.next(YOU);
+      }
+
+      function shoot(x, y) {
+        if (!m.canPlay() || theirs.shots[y][x]) return;
+        fire(theirs, x, y);
+        if (allSunk(theirs)) m.finish(YOU);
+        else m.next(CPU);
+      }
+
+      function marks(rd, side, oy) {
+        side.shots.forEach((row, y) => row.forEach((v, x) => {
+          const cx = x + 0.5;
+          const cy = oy + y + 0.5;
+          if (v === 2) rd.lines([cx - 0.28, cy - 0.28, cx + 0.28, cy + 0.28, cx + 0.28, cy - 0.28, cx - 0.28, cy + 0.28], 0.09, 'amb', [255, 80, 80]);
+          else if (v === 1) rd.circle(cx, cy, 0.1, 'fellow', WHITE);
+        }));
+      }
+
+      g.update = dt => m.update(dt, cpuMove);
+      g.pointer = (type, x, y) => {
+        if (type !== 'down' || x < 0 || y < 0 || x >= N || y >= N) return;
+        showCursor = false;
+        shoot(Math.floor(x), Math.floor(y));
+      };
+      g.action = a => {
+        showCursor = true;
+        if (!moveCursor(cur, a, N, N) && a === 'action') shoot(cur.x, cur.y);
+      };
+      g.draw = rd => {
+        for (const oy of [0, BOTTOM]) {
+          const segs = [];
+          for (let k = 0; k <= N; k++) segs.push(k, oy, k, oy + N, 0, oy + k, N, oy + k);
+          rd.lines(segs, 0.03, 'both', WHITE, 0.25);
+        }
+        mine.ships.forEach(s => s.cells.forEach(([x, y]) => rd.tile(x, BOTTOM + y, 1, 1, 'fellow', [120, 160, 220], 0.6)));
+        theirs.ships.filter(s => s.sunk).forEach(s => {
+          const xs = s.cells.map(c => c[0]);
+          const ys = s.cells.map(c => c[1]);
+          const x0 = Math.min(...xs);
+          const y0 = Math.min(...ys);
+          rd.box(x0 + 0.1, y0 + 0.1, Math.max(...xs) - x0 + 0.8, Math.max(...ys) - y0 + 0.8, 0.06, 'both', WHITE, 0.6);
+        });
+        marks(rd, theirs, 0);
+        marks(rd, mine, BOTTOM);
+        if (showCursor) rd.box(cur.x + 0.06, cur.y + 0.06, 0.88, 0.88, 0.05, 'both', WHITE, 0.8);
+      };
+      g.hud = () => [m.hud()[0], `Enemy ships ${theirs.ships.filter(s => !s.sunk).length}`, `Won ${m.wins}`, `Lost ${m.losses}`];
+      m.start();
+      return g;
+    },
+  });
 })();

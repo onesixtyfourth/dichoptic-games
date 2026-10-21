@@ -1207,4 +1207,315 @@
       return g;
     },
   });
+
+  DG.register({
+    id: 'mahjong',
+    name: 'Mahjong Solitaire',
+    category: 'Puzzles',
+    description: 'Clear the stacked tiles by removing matching free pairs.',
+    help: 'Tap two matching tiles to remove them. A tile is free when nothing is on top of it and its left or right side is open. Free tiles are brighter, and the dots show how tall a stack is. Symbols alternate between your weaker and stronger eye.',
+    width: 7,
+    height: 6,
+    buttons: ['left', 'up', 'down', 'right', 'action'],
+    labels: { action: 'Pick' },
+    repeat: ['left', 'up', 'down', 'right'],
+    lowerIsBetter: true,
+    create(api) {
+      // Each layer is [width, height], centred on the one below.
+      const LAYOUTS = [
+        [[6, 4], [4, 2], [2, 2]],
+        [[7, 6], [5, 4], [3, 2], [1, 2]],
+        [[8, 6], [6, 4], [4, 2], [2, 2]],
+      ];
+      const SYMBOLS = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+      const KINDS = [12, 18, 21][api.difficulty];
+      const layers = LAYOUTS[api.difficulty];
+      const [W, H] = layers[0];
+      const g = { width: W, height: H };
+      const cur = { x: 0, y: 0 };
+      // stacks[y][x] lists symbols from the bottom tile to the top one.
+      let stacks;
+      let sel = null;
+      let left = 0;
+      let t = 0;
+      let showCursor = false;
+
+      const isFree = (h, x, y) => h[y][x] > 0 && (x === 0 || h[y][x - 1] < h[y][x] || x === W - 1 || h[y][x + 1] < h[y][x]);
+
+      // Deal by removing free pairs from a full layout, so the deal is always solvable.
+      function deal() {
+        for (let attempt = 0; attempt < 200; attempt++) {
+          const h = util.grid(W, H, 0);
+          for (const [lw, lh] of layers) {
+            const ox = (W - lw) / 2;
+            const oy = (H - lh) / 2;
+            for (let y = 0; y < lh; y++) for (let x = 0; x < lw; x++) h[oy + y][ox + x]++;
+          }
+          const total = h.flat().reduce((a, b) => a + b, 0);
+          const assign = h.map(row => row.map(n => Array(n).fill(null)));
+          let ok = true;
+          for (let k = 0; k < total / 2 && ok; k++) {
+            const free = [];
+            for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) if (isFree(h, x, y)) free.push([x, y]);
+            if (free.length < 2) {
+              ok = false;
+              break;
+            }
+            for (const [x, y] of util.shuffle(free).slice(0, 2)) {
+              h[y][x]--;
+              assign[y][x][h[y][x]] = SYMBOLS[k % KINDS];
+            }
+          }
+          if (ok) {
+            stacks = assign;
+            left = total;
+            return;
+          }
+        }
+      }
+      deal();
+
+      const heights = () => stacks.map(row => row.map(s => s.length));
+      const free = (x, y) => isFree(heights(), x, y);
+      const top = (x, y) => stacks[y][x][stacks[y][x].length - 1];
+
+      function anyMove() {
+        const h = heights();
+        const seen = new Set();
+        for (let y = 0; y < H; y++) {
+          for (let x = 0; x < W; x++) {
+            if (!isFree(h, x, y)) continue;
+            if (seen.has(top(x, y))) return true;
+            seen.add(top(x, y));
+          }
+        }
+        return false;
+      }
+
+      function reshuffle() {
+        for (let tries = 0; tries < 30 && left && !anyMove(); tries++) {
+          const syms = util.shuffle(stacks.flat().flat());
+          let i = 0;
+          stacks = stacks.map(row => row.map(s => s.map(() => syms[i++])));
+        }
+      }
+
+      function choose(x, y) {
+        if (!free(x, y)) return;
+        if (!sel || (sel[0] === x && sel[1] === y)) {
+          sel = sel ? null : [x, y];
+          return;
+        }
+        if (top(sel[0], sel[1]) !== top(x, y)) {
+          sel = [x, y];
+          return;
+        }
+        stacks[sel[1]][sel[0]].pop();
+        stacks[y][x].pop();
+        left -= 2;
+        sel = null;
+        if (!left) {
+          g.score = Math.round(t);
+          api.gameOver(`Cleared in ${util.formatTime(t * 1000)}!`);
+          return;
+        }
+        reshuffle();
+      }
+
+      g.update = dt => { t += dt; };
+      g.pointer = (type, x, y) => {
+        if (type !== 'down' || x < 0 || y < 0 || x >= W || y >= H) return;
+        showCursor = false;
+        choose(Math.floor(x), Math.floor(y));
+      };
+      g.action = a => {
+        showCursor = true;
+        if (!moveCursor(cur, a, W, H) && a === 'action') choose(cur.x, cur.y);
+      };
+      g.draw = rd => {
+        const h = heights();
+        for (let y = 0; y < H; y++) {
+          for (let x = 0; x < W; x++) {
+            if (!h[y][x]) continue;
+            const f = isFree(h, x, y);
+            rd.rect(x + 0.05, y + 0.05, 0.9, 0.9, 'both', WHITE, 0.04 + 0.03 * h[y][x]);
+            rd.box(x + 0.05, y + 0.05, 0.9, 0.9, 0.04, 'both', WHITE, f ? 0.7 : 0.2);
+            for (let k = 0; k < h[y][x]; k++) rd.circle(x + 0.17 + k * 0.13, y + 0.17, 0.045, 'both', WHITE, 0.6);
+            rd.text(top(x, y), x + 0.5, y + 0.58, 0.5, (x + y) % 2 ? 'amb' : 'fellow', WHITE, f ? 1 : 0.45);
+          }
+        }
+        if (sel) rd.box(sel[0] + 0.02, sel[1] + 0.02, 0.96, 0.96, 0.07, 'both', WHITE, 0.95);
+        if (showCursor) rd.box(cur.x + 0.1, cur.y + 0.1, 0.8, 0.8, 0.04, 'both', WHITE, 0.6);
+      };
+      g.hud = () => [`Tiles left ${left}`, `Time ${util.formatTime(t * 1000)}`];
+      return g;
+    },
+  });
+
+  DG.register({
+    id: 'shapecrush',
+    name: 'Shape Crush',
+    category: 'Puzzles',
+    description: 'Swap neighbouring shapes to make lines of three or more.',
+    help: 'Swipe a shape, or tap two neighbours, to swap them. Lines of three or more matching shapes clear and the shapes above fall. You have 30 moves. Shapes on alternate squares are shown to your weaker and stronger eye.',
+    width: 7,
+    height: 8,
+    buttons: ['left', 'up', 'down', 'right', 'action'],
+    labels: { action: 'Pick' },
+    create(api) {
+      const W = 7;
+      const H = 8;
+      const TYPES = [5, 6, 7][api.difficulty];
+      const g = { score: 0 };
+      const cur = { x: 3, y: 4 };
+      let grid;
+      let marked = null;
+      let flashing = false;
+      let timer = 0;
+      let chain = 0;
+      let movesLeft = 30;
+      let sel = null;
+      let down = null;
+      let showCursor = false;
+
+      const inside = (x, y) => x >= 0 && y >= 0 && x < W && y < H;
+
+      function fresh() {
+        grid = util.grid(W, H, 0);
+        for (let y = 0; y < H; y++) {
+          for (let x = 0; x < W; x++) {
+            do grid[y][x] = util.randInt(TYPES);
+            while ((x >= 2 && grid[y][x - 1] === grid[y][x] && grid[y][x - 2] === grid[y][x])
+              || (y >= 2 && grid[y - 1][x] === grid[y][x] && grid[y - 2][x] === grid[y][x]));
+          }
+        }
+      }
+
+      function findMatches() {
+        const mk = util.grid(W, H, false);
+        let any = false;
+        for (let y = 0; y < H; y++) {
+          for (let x = 0; x < W; x++) {
+            const v = grid[y][x];
+            if (x < W - 2 && grid[y][x + 1] === v && grid[y][x + 2] === v) {
+              mk[y][x] = mk[y][x + 1] = mk[y][x + 2] = true;
+              any = true;
+            }
+            if (y < H - 2 && grid[y + 1][x] === v && grid[y + 2][x] === v) {
+              mk[y][x] = mk[y + 1][x] = mk[y + 2][x] = true;
+              any = true;
+            }
+          }
+        }
+        return any ? mk : null;
+      }
+
+      const swap = (a, b) => {
+        [grid[a[1]][a[0]], grid[b[1]][b[0]]] = [grid[b[1]][b[0]], grid[a[1]][a[0]]];
+      };
+
+      function hasMove() {
+        for (let y = 0; y < H; y++) {
+          for (let x = 0; x < W; x++) {
+            for (const [dx, dy] of [[1, 0], [0, 1]]) {
+              if (!inside(x + dx, y + dy)) continue;
+              swap([x, y], [x + dx, y + dy]);
+              const ok = !!findMatches();
+              swap([x, y], [x + dx, y + dy]);
+              if (ok) return true;
+            }
+          }
+        }
+        return false;
+      }
+
+      do fresh();
+      while (!hasMove());
+
+      function trySwap(a, b) {
+        if (flashing || movesLeft <= 0 || !inside(b[0], b[1]) || Math.abs(a[0] - b[0]) + Math.abs(a[1] - b[1]) !== 1) return;
+        swap(a, b);
+        marked = findMatches();
+        if (!marked) {
+          swap(a, b);
+          return;
+        }
+        movesLeft--;
+        chain = 0;
+        flashing = true;
+        timer = 0.25;
+        sel = null;
+      }
+
+      function collapse() {
+        for (let x = 0; x < W; x++) {
+          let write = H - 1;
+          for (let y = H - 1; y >= 0; y--) if (!marked[y][x]) grid[write--][x] = grid[y][x];
+          for (; write >= 0; write--) grid[write][x] = util.randInt(TYPES);
+        }
+      }
+
+      g.update = dt => {
+        if (!flashing) return;
+        timer -= dt;
+        if (timer > 0) return;
+        chain++;
+        g.score += marked.flat().filter(Boolean).length * 10 * chain;
+        collapse();
+        marked = findMatches();
+        if (marked) {
+          timer = 0.25;
+          return;
+        }
+        flashing = false;
+        if (movesLeft <= 0) {
+          api.gameOver(`Out of moves \u2013 score ${g.score}`);
+          return;
+        }
+        while (!hasMove()) fresh();
+      };
+      g.pointer = (type, x, y) => {
+        if (type === 'down') {
+          down = inside(Math.floor(x), Math.floor(y)) ? [Math.floor(x), Math.floor(y)] : null;
+          showCursor = false;
+          return;
+        }
+        if (type !== 'up' || !down) return;
+        const dx = x - (down[0] + 0.5);
+        const dy = y - (down[1] + 0.5);
+        if (Math.max(Math.abs(dx), Math.abs(dy)) > 0.6) {
+          trySwap(down, Math.abs(dx) > Math.abs(dy) ? [down[0] + Math.sign(dx), down[1]] : [down[0], down[1] + Math.sign(dy)]);
+        } else if (sel && Math.abs(sel[0] - down[0]) + Math.abs(sel[1] - down[1]) === 1) {
+          trySwap(sel, down);
+        } else {
+          sel = sel && sel[0] === down[0] && sel[1] === down[1] ? null : down;
+        }
+        down = null;
+      };
+      g.action = a => {
+        showCursor = true;
+        const d = { left: [-1, 0], right: [1, 0], up: [0, -1], down: [0, 1] }[a];
+        if (d && sel) {
+          trySwap(sel, [sel[0] + d[0], sel[1] + d[1]]);
+          sel = null;
+        } else if (d) {
+          moveCursor(cur, a, W, H);
+        } else if (a === 'action') {
+          sel = sel ? null : [cur.x, cur.y];
+        }
+      };
+      g.draw = rd => {
+        for (let y = 0; y < H; y++) {
+          for (let x = 0; x < W; x++) {
+            const blink = flashing && marked[y][x] && Math.floor(timer * 20) % 2;
+            symbol(rd, x + 0.5, y + 0.5, 0.3, grid[y][x], (x + y) % 2 ? 'amb' : 'fellow', blink ? 0.3 : 1);
+          }
+        }
+        if (sel) rd.box(sel[0] + 0.04, sel[1] + 0.04, 0.92, 0.92, 0.06, 'both', WHITE, 0.9);
+        if (showCursor) rd.box(cur.x + 0.08, cur.y + 0.08, 0.84, 0.84, 0.04, 'both', WHITE, 0.6);
+      };
+      g.hud = () => [`Score ${g.score}`, `Moves ${movesLeft}`];
+      return g;
+    },
+  });
 })();

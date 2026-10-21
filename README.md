@@ -11,7 +11,7 @@ keywords:
 
 Games on your phone, set up as dichoptic exercises. Each eye sees a different part of the game, so the two eyes have to work together to play.
 
-There are 28 games in four groups (arcade, puzzles, strategy and words), so you can switch between them to keep sessions varied.
+There are 33 games in four groups (arcade, puzzles, strategy and words), so you can switch between them to keep sessions varied.
 
 > [!IMPORTANT]
 > Play now at **<https://onesixtyfourth.github.io/dichoptic-games/>**
@@ -41,6 +41,7 @@ To play well you need information from both eyes at the same time. Lowering the 
 | Space Shooter | Enemies and their shots          | Your ship and shots      |
 | Bubble Pop    | Bubbles                          | Mines to avoid           |
 | Lane Dash     | Traffic                          | You                      |
+| Whack-a-Mole  | Some of the moles and bombs      | The other moles and bombs |
 
 ### Puzzles
 
@@ -57,6 +58,8 @@ To play well you need information from both eyes at the same time. Lowering the 
 | Spot the Difference | Its own version of each differing shape | Its own version of each differing shape |
 | Shape Sort     | Half of the kinds of shape   | The other half of the kinds of shape |
 | Simon          | Half of the panels           | The other half of the panels |
+| Mahjong Solitaire | Half of the tile symbols  | The other half of the tile symbols |
+| Shape Crush    | Shapes on alternate squares  | Shapes on the other squares |
 
 ### Strategy
 
@@ -67,6 +70,8 @@ To play well you need information from both eyes at the same time. Lowering the 
 | Gomoku        | Your stones     | Computer's stones     |
 | Solitaire     | Red cards       | Black cards and face-down cards |
 | Reversi       | Your pieces     | Computer's pieces     |
+| Checkers      | Your pieces     | Computer's pieces     |
+| Battleships   | Hits            | Misses and your ships |
 
 ### Words
 
