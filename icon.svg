@@ -1,14 +1,21 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <defs>
+    <path id="eye" d="M-104 0C-58-92 58-92 104 0C58 92-58 92-104 0Z"/>
+    <clipPath id="eye-clip"><use href="#eye"/></clipPath>
+  </defs>
   <rect width="512" height="512" rx="96" fill="#404040"/>
-  <g fill="#ff4040">
-    <rect x="96" y="96" width="96" height="96"/>
-    <rect x="192" y="96" width="96" height="96"/>
-    <rect x="192" y="192" width="96" height="96"/>
+  <g transform="translate(138 256)">
+    <use href="#eye" fill="#f2f2f2" stroke="#1a1a1a" stroke-width="10"/>
+    <g clip-path="url(#eye-clip)">
+      <circle r="50" fill="#ff3030"/>
+      <circle cx="-16" cy="-17" r="13" fill="#ffffff" opacity="0.9"/>
+    </g>
   </g>
-  <g fill="#4060ff">
-    <rect x="128" y="320" width="96" height="96"/>
-    <rect x="224" y="320" width="96" height="96"/>
-    <rect x="320" y="320" width="96" height="96"/>
-    <rect x="320" y="224" width="96" height="96"/>
+  <g transform="translate(374 256)">
+    <use href="#eye" fill="#f2f2f2" stroke="#1a1a1a" stroke-width="10"/>
+    <g clip-path="url(#eye-clip)">
+      <circle r="50" fill="#3050ff"/>
+      <circle cx="-16" cy="-17" r="13" fill="#ffffff" opacity="0.9"/>
+    </g>
   </g>
 </svg>
