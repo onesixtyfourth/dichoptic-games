@@ -1,7 +1,7 @@
 'use strict';
 
 (() => {
-  const { util, WHITE } = DG;
+  const { util, WHITE, SYMBOL_COLOURS, symbol } = DG;
   const DIRS = { left: [-1, 0], right: [1, 0], up: [0, -1], down: [0, 1] };
 
   function moveCursor(cur, a, w, h) {
@@ -10,20 +10,6 @@
     cur.x = util.clamp(cur.x + d[0], 0, w - 1);
     cur.y = util.clamp(cur.y + d[1], 0, h - 1);
     return true;
-  }
-
-  const SYMBOL_COLOURS = [[240, 80, 80], [80, 200, 90], [80, 140, 255], [240, 220, 60], [200, 90, 240], [90, 220, 220], [255, 150, 60]];
-
-  // Shapes stand in for colours, which anaglyph glasses hide.
-  function symbol(rd, x, y, s, t, target, strength = 1) {
-    const col = SYMBOL_COLOURS[t % SYMBOL_COLOURS.length];
-    if (t === 0) rd.circle(x, y, s, target, col, strength);
-    else if (t === 1) rd.poly([x, y - s * 1.2, x + s * 1.1, y + s * 0.8, x - s * 1.1, y + s * 0.8], target, col, strength);
-    else if (t === 2) rd.rect(x - s, y - s, 2 * s, 2 * s, target, col, strength);
-    else if (t === 3) rd.poly([x, y - s * 1.3, x + s * 1.1, y, x, y + s * 1.3, x - s * 1.1, y], target, col, strength);
-    else if (t === 4) rd.lines([x - s, y - s, x + s, y + s, x + s, y - s, x - s, y + s], s * 0.45, target, col, strength);
-    else if (t === 5) rd.lines([x - s * 1.2, y, x + s * 1.2, y, x, y - s * 1.2, x, y + s * 1.2], s * 0.45, target, col, strength);
-    else rd.ring(x, y, s * 0.85, s * 0.35, target, col, strength);
   }
 
   DG.register({
@@ -1632,6 +1618,379 @@
         if (showCursor) rd.box(CL + cur.x + 0.06, CT + cur.y + 0.06, 0.88, 0.88, 0.05, 'both', WHITE, 0.8);
       };
       g.hud = () => [markMode ? 'Mode: \u2715' : 'Mode: fill', `Time ${util.formatTime(t * 1000)}`];
+      return g;
+    },
+  });
+
+  DG.register({
+    id: 'lightsout',
+    name: 'Lights Out',
+    category: 'Puzzles',
+    description: 'Press squares to switch every light off.',
+    help: 'Pressing a square flips it and the squares above, below, left and right of it. Switch every light off in as few presses as you can. Your weaker eye sees the lights that are on; your stronger eye sees the ones that are off.',
+    width: 5,
+    height: 5,
+    buttons: ['left', 'up', 'down', 'right', 'action'],
+    labels: { action: 'Press' },
+    repeat: ['left', 'up', 'down', 'right'],
+    lowerIsBetter: true,
+    create(api) {
+      const N = [4, 5, 6][api.difficulty];
+      const PAR = [4, 7, 10][api.difficulty];
+      const g = { width: N, height: N };
+      const lit = util.grid(N, N, false);
+      const cur = { x: Math.floor(N / 2), y: Math.floor(N / 2) };
+      let showCursor = false;
+      let moves = 0;
+
+      function flip(x, y) {
+        for (const [dx, dy] of [[0, 0], [1, 0], [-1, 0], [0, 1], [0, -1]]) {
+          const nx = x + dx;
+          const ny = y + dy;
+          if (nx >= 0 && ny >= 0 && nx < N && ny < N) lit[ny][nx] = !lit[ny][nx];
+        }
+      }
+      const allOff = () => lit.every(row => row.every(v => !v));
+      // Scrambling from all-off guarantees the puzzle can be solved.
+      do {
+        util.shuffle([...Array(N * N).keys()]).slice(0, PAR).forEach(i => flip(i % N, Math.floor(i / N)));
+      } while (allOff());
+
+      function press(x, y) {
+        flip(x, y);
+        moves++;
+        if (allOff()) {
+          g.score = moves;
+          api.gameOver(`All lights off in ${moves} moves!`);
+        }
+      }
+
+      g.pointer = (type, x, y) => {
+        if (type !== 'down' || x < 0 || y < 0 || x >= N || y >= N) return;
+        showCursor = false;
+        press(Math.floor(x), Math.floor(y));
+      };
+      g.action = a => {
+        showCursor = true;
+        if (!moveCursor(cur, a, N, N) && a === 'action') press(cur.x, cur.y);
+      };
+      g.draw = rd => {
+        lit.forEach((row, y) => row.forEach((on, x) => {
+          if (on) rd.tile(x + 0.04, y + 0.04, 0.92, 0.92, 'amb', [255, 220, 80]);
+          else rd.tile(x + 0.04, y + 0.04, 0.92, 0.92, 'fellow', [80, 120, 220], 0.6);
+        }));
+        if (showCursor) rd.box(cur.x + 0.02, cur.y + 0.02, 0.96, 0.96, 0.06, 'both', WHITE, 0.9);
+      };
+      g.hud = () => [`Moves ${moves}`, `Par ${PAR}`];
+      return g;
+    },
+  });
+
+  DG.register({
+    id: 'codebreaker',
+    name: 'Code Breaker',
+    category: 'Puzzles',
+    description: 'Work out the hidden code of shapes from the clues.',
+    help: 'Tap shapes to build a guess, then tap OK. A solid dot means a shape is right and in the right place; a ring means the shape is in the code but somewhere else. Your weaker eye sees the shapes; your stronger eye sees the clues.',
+    width: 10,
+    height: 11.4,
+    buttons: ['left', 'action', 'right'],
+    labels: { action: 'Pick' },
+    repeat: ['left', 'right'],
+    create(api) {
+      const LEN = [3, 4, 5][api.difficulty];
+      const K = [5, 6, 7][api.difficulty];
+      const repeats = api.difficulty === 2;
+      const TRIES = 10;
+      const ROW = 0.95;
+      const PY = TRIES * ROW + 0.5;
+      const items = [...Array(K).keys(), 'DEL', 'OK'];
+      const IW = 10 / items.length;
+      const g = { score: 0 };
+      let code;
+      let guesses;
+      let typed;
+      let message;
+      let nextIn;
+      let cursor = items.length - 1;
+      let showCursor = false;
+
+      function newRound() {
+        code = repeats ? Array.from({ length: LEN }, () => util.randInt(K)) : util.shuffle([...Array(K).keys()]).slice(0, LEN);
+        guesses = [];
+        typed = [];
+        message = '';
+        nextIn = 0;
+      }
+      newRound();
+
+      function mark(guess) {
+        let exact = 0;
+        const inCode = {};
+        const inGuess = {};
+        guess.forEach((s, i) => {
+          if (s === code[i]) exact++;
+          else {
+            inCode[code[i]] = (inCode[code[i]] || 0) + 1;
+            inGuess[s] = (inGuess[s] || 0) + 1;
+          }
+        });
+        const near = Object.keys(inGuess).reduce((n, s) => n + Math.min(inGuess[s], inCode[s] || 0), 0);
+        return { exact, near };
+      }
+
+      function press(item) {
+        if (nextIn > 0) return;
+        message = '';
+        if (item === 'DEL') typed.pop();
+        else if (item !== 'OK') {
+          if (typed.length < LEN) typed.push(item);
+        } else if (typed.length < LEN) {
+          message = 'Not enough shapes';
+        } else {
+          const res = mark(typed);
+          guesses.push({ shapes: typed, ...res });
+          typed = [];
+          if (res.exact === LEN) {
+            g.score++;
+            message = 'Cracked it!';
+            nextIn = 2.5;
+          } else if (guesses.length === TRIES) {
+            message = 'Out of guesses';
+            nextIn = 4;
+          }
+        }
+      }
+
+      g.update = dt => {
+        if (nextIn > 0) {
+          nextIn -= dt;
+          if (nextIn <= 0) newRound();
+        }
+      };
+      g.key = k => {
+        const n = Number(k);
+        if (n >= 1 && n <= K) press(n - 1);
+        else if (k === 'Backspace' || k === 'Delete') press('DEL');
+        else if (k === 'Enter') press('OK');
+        else return false;
+        return true;
+      };
+      g.pointer = (type, x, y) => {
+        if (type !== 'down' || y < PY || y > PY + 1.2 || x < 0 || x >= 10) return;
+        showCursor = false;
+        press(items[Math.floor(x / IW)]);
+      };
+      g.action = a => {
+        showCursor = true;
+        if (a === 'left') cursor = (cursor + items.length - 1) % items.length;
+        else if (a === 'right') cursor = (cursor + 1) % items.length;
+        else if (a === 'action') press(items[cursor]);
+      };
+      g.draw = rd => {
+        for (let r = 0; r < TRIES; r++) {
+          const y = r * ROW;
+          const guess = guesses[r];
+          const active = r === guesses.length && nextIn <= 0;
+          if (active) rd.rect(0, y, 10, ROW, 'both', WHITE, 0.08);
+          for (let c = 0; c < LEN; c++) {
+            const cx = 0.9 + c * 1.05;
+            const cy = y + ROW / 2;
+            const s = guess ? guess.shapes[c] : active ? typed[c] : undefined;
+            if (s !== undefined) symbol(rd, cx, cy, 0.28, s, 'amb');
+            else rd.circle(cx, cy, 0.08, 'both', WHITE, 0.3);
+          }
+          if (!guess) continue;
+          for (let i = 0; i < LEN; i++) {
+            const px = 6.6 + i * 0.6;
+            const cy = y + ROW / 2;
+            if (i < guess.exact) rd.circle(px, cy, 0.17, 'fellow', WHITE);
+            else if (i < guess.exact + guess.near) rd.ring(px, cy, 0.14, 0.06, 'fellow', WHITE);
+            else rd.circle(px, cy, 0.05, 'both', WHITE, 0.3);
+          }
+        }
+        rd.line(6.1, 0, 6.1, TRIES * ROW, 0.03, 'both', WHITE, 0.3);
+        const lost = nextIn > 0 && guesses.length === TRIES && guesses[TRIES - 1].exact < LEN;
+        if (lost) {
+          rd.text('Code:', 1.4, PY + 0.6, 0.5, 'both', WHITE, 0.8);
+          code.forEach((s, i) => symbol(rd, 3.2 + i * 1.1, PY + 0.6, 0.3, s, 'both'));
+          return;
+        }
+        items.forEach((item, i) => {
+          const x = i * IW;
+          rd.rect(x + 0.06, PY, IW - 0.12, 1.2, 'both', WHITE, 0.1);
+          if (typeof item === 'number') symbol(rd, x + IW / 2, PY + 0.6, 0.27, item, 'amb');
+          else rd.text(item, x + IW / 2, PY + 0.62, 0.32, 'amb', WHITE);
+        });
+        if (showCursor) rd.box(cursor * IW + 0.03, PY - 0.03, IW - 0.06, 1.26, 0.05, 'both', WHITE, 0.9);
+      };
+      g.hud = () => [message || `Guess ${Math.min(guesses.length + 1, TRIES)}/${TRIES}`, `Solved ${g.score}`];
+      return g;
+    },
+  });
+
+  DG.register({
+    id: 'flowgrid',
+    name: 'Flowgrid',
+    category: 'Puzzles',
+    description: 'Join each pair of matching shapes with a path, filling every square.',
+    help: 'Drag from a shape to draw a path to its matching shape. Paths can\u2019t cross, and every square must be filled. Drag back along a path to shorten it. Your weaker eye sees the shapes; your stronger eye sees the paths.',
+    width: 6,
+    height: 6,
+    buttons: ['left', 'up', 'down', 'right', 'action'],
+    labels: { action: 'Draw' },
+    lowerIsBetter: true,
+    create(api) {
+      const N = [5, 6, 7][api.difficulty];
+      const P = [4, 5, 6][api.difficulty];
+      const g = { width: N, height: N };
+      const same = (a, b) => a[0] === b[0] && a[1] === b[1];
+      const adj = (a, b) => Math.abs(a[0] - b[0]) + Math.abs(a[1] - b[1]) === 1;
+      const inside = (x, y) => x >= 0 && y >= 0 && x < N && y < N;
+
+      // A random path through every square, cut into pieces, gives a puzzle that is known to be solvable.
+      function generate() {
+        let path = [];
+        for (let y = 0; y < N; y++) for (let k = 0; k < N; k++) path.push([y % 2 ? N - 1 - k : k, y]);
+        for (let i = 0; i < N * N * 30; i++) {
+          if (Math.random() < 0.5) path.reverse();
+          const [ex, ey] = path[path.length - 1];
+          const options = Object.values(DIRS).map(([dx, dy]) => [ex + dx, ey + dy]).filter(([x, y]) => inside(x, y));
+          const n = util.pick(options);
+          const idx = path.findIndex(c => same(c, n));
+          path = path.slice(0, idx + 1).concat(path.slice(idx + 1).reverse());
+        }
+        const lens = Array(P).fill(3);
+        for (let i = 0; i < N * N - 3 * P; i++) lens[util.randInt(P)]++;
+        const segs = [];
+        let k = 0;
+        for (const len of lens) {
+          segs.push(path.slice(k, k + len));
+          k += len;
+        }
+        return segs;
+      }
+      let segs;
+      for (let tries = 0; tries < 30; tries++) {
+        segs = generate();
+        if (!segs.some(s => adj(s[0], s[s.length - 1]))) break;
+      }
+      const ends = segs.map(s => [s[0], s[s.length - 1]]);
+      const kinds = util.shuffle([0, 1, 2, 3, 4, 5, 6]).slice(0, P);
+      const endAt = util.grid(N, N, -1);
+      ends.forEach((pair, c) => pair.forEach(([x, y]) => { endAt[y][x] = c; }));
+      const paths = ends.map(() => []);
+      const cur = { x: 0, y: 0 };
+      let active = null;
+      let showCursor = false;
+      let t = 0;
+
+      const joined = c => {
+        const p = paths[c];
+        if (p.length < 2) return false;
+        const other = same(p[0], ends[c][0]) ? ends[c][1] : ends[c][0];
+        return same(p[p.length - 1], other);
+      };
+      const filled = () => paths.reduce((n, p) => n + p.length, 0);
+
+      function check() {
+        if (paths.every((_, c) => joined(c)) && filled() === N * N) {
+          g.score = Math.round(t);
+          api.gameOver(`Solved in ${util.formatTime(t * 1000)}!`);
+        }
+      }
+
+      function begin(x, y) {
+        const e = endAt[y][x];
+        active = null;
+        if (e >= 0) {
+          paths[e] = [[x, y]];
+          active = e;
+          return;
+        }
+        paths.forEach((p, c) => {
+          const i = p.findIndex(q => same(q, [x, y]));
+          if (i >= 0) {
+            p.length = i + 1;
+            active = c;
+          }
+        });
+      }
+
+      function step(cell) {
+        if (active === null || !inside(cell[0], cell[1])) return false;
+        const p = paths[active];
+        if (!adj(p[p.length - 1], cell)) return false;
+        const i = p.findIndex(q => same(q, cell));
+        if (i >= 0) {
+          p.length = i + 1;
+          return true;
+        }
+        if (joined(active)) return false;
+        const e = endAt[cell[1]][cell[0]];
+        if (e >= 0 && e !== active) return false;
+        paths.forEach((q, c) => {
+          const j = q.findIndex(r => same(r, cell));
+          if (c !== active && j >= 0) q.length = j;
+        });
+        p.push(cell);
+        check();
+        return true;
+      }
+
+      function dragTo(x, y) {
+        const target = [util.clamp(Math.floor(x), 0, N - 1), util.clamp(Math.floor(y), 0, N - 1)];
+        for (let n = 0; n < 2 * N && active !== null; n++) {
+          const last = paths[active][paths[active].length - 1];
+          if (same(last, target)) return;
+          const dx = target[0] - last[0];
+          const dy = target[1] - last[1];
+          const next = Math.abs(dx) >= Math.abs(dy) ? [last[0] + Math.sign(dx), last[1]] : [last[0], last[1] + Math.sign(dy)];
+          if (!step(next)) return;
+        }
+      }
+
+      g.update = dt => { t += dt; };
+      g.pointer = (type, x, y) => {
+        if (type === 'down') {
+          showCursor = false;
+          if (inside(Math.floor(x), Math.floor(y))) begin(Math.floor(x), Math.floor(y));
+        } else if (type === 'move') {
+          if (active !== null) dragTo(x, y);
+        } else {
+          active = null;
+        }
+      };
+      g.action = a => {
+        showCursor = true;
+        if (a === 'action') {
+          if (active === null) begin(cur.x, cur.y);
+          else active = null;
+          return;
+        }
+        const d = DIRS[a];
+        if (!d) return;
+        const next = [cur.x + d[0], cur.y + d[1]];
+        if (!inside(next[0], next[1])) return;
+        if (active !== null && !step(next)) return;
+        [cur.x, cur.y] = next;
+      };
+      g.draw = rd => {
+        const segsGrid = [];
+        for (let k = 0; k <= N; k++) segsGrid.push(k, 0, k, N, 0, k, N, k);
+        rd.lines(segsGrid, 0.03, 'both', WHITE, 0.3);
+        paths.forEach((p, c) => {
+          const col = SYMBOL_COLOURS[kinds[c]];
+          const strength = joined(c) ? 1 : 0.7;
+          p.forEach(([x, y]) => rd.rect(x + 0.08, y + 0.08, 0.84, 0.84, 'fellow', col, 0.25 * strength));
+          const line = [];
+          for (let i = 1; i < p.length; i++) line.push(p[i - 1][0] + 0.5, p[i - 1][1] + 0.5, p[i][0] + 0.5, p[i][1] + 0.5);
+          if (line.length) rd.lines(line, 0.26, 'fellow', col, strength);
+        });
+        ends.forEach((pair, c) => pair.forEach(([x, y]) => symbol(rd, x + 0.5, y + 0.5, 0.28, kinds[c], 'amb')));
+        if (showCursor) rd.box(cur.x + 0.04, cur.y + 0.04, 0.92, 0.92, active !== null ? 0.1 : 0.05, 'both', WHITE, 0.9);
+      };
+      g.hud = () => [`Joined ${paths.filter((_, c) => joined(c)).length}/${P}`, `Filled ${Math.round((filled() * 100) / (N * N))}%`, `Time ${util.formatTime(t * 1000)}`];
       return g;
     },
   });

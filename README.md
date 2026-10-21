@@ -11,7 +11,7 @@ keywords:
 
 Games on your phone, set up as dichoptic exercises. Each eye sees a different part of the game, so the two eyes have to work together to play.
 
-There are 38 games in four groups (arcade, puzzles, strategy and words), so you can switch between them to keep sessions varied.
+There are 43 games in four groups (arcade, puzzles, strategy and words), so you can switch between them to keep sessions varied.
 
 > [!IMPORTANT]
 > Play now at **<https://onesixtyfourth.github.io/dichoptic-games/>**
@@ -31,18 +31,18 @@ Every game has its own page with a full description, how to play, controls, what
 
 | Category                             | Games | What they're like                                    |
 |--------------------------------------|-------|------------------------------------------------------|
-| [Arcade](docs/arcade/README.md)      | 13    | Fast, real-time games where you react to moving objects |
-| [Puzzles](docs/puzzles/README.md)    | 14    | Thinking games played at your own pace               |
+| [Arcade](docs/arcade/README.md)      | 15    | Fast, real-time games where you react to moving objects |
+| [Puzzles](docs/puzzles/README.md)    | 17    | Thinking games played at your own pace               |
 | [Strategy](docs/strategy/README.md)  | 8     | Board and card games against the computer            |
 | [Words](docs/words/README.md)        | 3     | Letter and word games with themed word lists         |
 
 ### Arcade
 
-[Blocks](docs/arcade/blocks.md), [Snake](docs/arcade/snake.md), [Brick Breaker](docs/arcade/brick-breaker.md), [Table Tennis](docs/arcade/table-tennis.md), [Flap](docs/arcade/flap.md), [Runner](docs/arcade/runner.md), [Traffic Racer](docs/arcade/traffic-racer.md), [Space Shooter](docs/arcade/space-shooter.md), [Bubble Pop](docs/arcade/bubble-pop.md), [Lane Dash](docs/arcade/lane-dash.md), [Whack-a-Mole](docs/arcade/whack-a-mole.md), [Asteroids](docs/arcade/asteroids.md), [Missile Defence](docs/arcade/missile-defence.md)
+[Blocks](docs/arcade/blocks.md), [Snake](docs/arcade/snake.md), [Brick Breaker](docs/arcade/brick-breaker.md), [Table Tennis](docs/arcade/table-tennis.md), [Flap](docs/arcade/flap.md), [Runner](docs/arcade/runner.md), [Traffic Racer](docs/arcade/traffic-racer.md), [Space Shooter](docs/arcade/space-shooter.md), [Bubble Pop](docs/arcade/bubble-pop.md), [Lane Dash](docs/arcade/lane-dash.md), [Whack-a-Mole](docs/arcade/whack-a-mole.md), [Asteroids](docs/arcade/asteroids.md), [Missile Defence](docs/arcade/missile-defence.md), [Shape Hero](docs/arcade/shape-hero.md), [Chaser](docs/arcade/chaser.md)
 
 ### Puzzles
 
-[Maze](docs/puzzles/maze.md), [Memory Match](docs/puzzles/memory-match.md), [Sliding Puzzle](docs/puzzles/sliding-puzzle.md), [2048](docs/puzzles/2048.md), [Sudoku](docs/puzzles/sudoku.md), [Mine Sweeper](docs/puzzles/mine-sweeper.md), [Bubble Shooter](docs/puzzles/bubble-shooter.md), [Link Pairs](docs/puzzles/link-pairs.md), [Spot the Difference](docs/puzzles/spot-the-difference.md), [Shape Sort](docs/puzzles/shape-sort.md), [Simon](docs/puzzles/simon.md), [Mahjong Solitaire](docs/puzzles/mahjong-solitaire.md), [Shape Crush](docs/puzzles/shape-crush.md), [Picture Logic](docs/puzzles/picture-logic.md)
+[Maze](docs/puzzles/maze.md), [Memory Match](docs/puzzles/memory-match.md), [Sliding Puzzle](docs/puzzles/sliding-puzzle.md), [2048](docs/puzzles/2048.md), [Sudoku](docs/puzzles/sudoku.md), [Mine Sweeper](docs/puzzles/mine-sweeper.md), [Bubble Shooter](docs/puzzles/bubble-shooter.md), [Link Pairs](docs/puzzles/link-pairs.md), [Spot the Difference](docs/puzzles/spot-the-difference.md), [Shape Sort](docs/puzzles/shape-sort.md), [Simon](docs/puzzles/simon.md), [Mahjong Solitaire](docs/puzzles/mahjong-solitaire.md), [Shape Crush](docs/puzzles/shape-crush.md), [Picture Logic](docs/puzzles/picture-logic.md), [Lights Out](docs/puzzles/lights-out.md), [Code Breaker](docs/puzzles/code-breaker.md), [Flowgrid](docs/puzzles/flowgrid.md)
 
 ### Strategy
 

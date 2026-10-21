@@ -26,6 +26,9 @@ Puzzle games are slower and let you take your time. The pieces of each puzzle ar
 | [Mahjong Solitaire](mahjong-solitaire.md)     | Remove free matching tiles from the stacks            | Half of the tile symbols       | The other half                 |
 | [Shape Crush](shape-crush.md)                 | Swap shapes to make lines of three                    | Shapes on alternate squares    | Shapes on the other squares    |
 | [Picture Logic](picture-logic.md)             | Use number clues to reveal a hidden picture           | Number clues                   | The grid you fill in           |
+| [Lights Out](lights-out.md)                   | Press squares to switch every light off               | Lights that are on             | Lights that are off            |
+| [Code Breaker](code-breaker.md)               | Work out a hidden code of shapes from clues           | Shapes                         | Clues                          |
+| [Flowgrid](flowgrid.md)                       | Join matching shapes with paths that fill the grid    | Shapes                         | Paths                          |
 
 ## Good to know
 

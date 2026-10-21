@@ -1,7 +1,7 @@
 'use strict';
 
 (() => {
-  const { util, WHITE } = DG;
+  const { util, WHITE, symbol } = DG;
   const RAINBOW = [[240, 60, 60], [240, 150, 40], [240, 230, 40], [60, 220, 80], [60, 160, 240], [170, 80, 240]];
 
   // Paddle position from held buttons and/or a dragged pointer target.
@@ -1234,4 +1234,295 @@
       return g;
     },
   });
+
+  DG.register({
+    id: 'shapehero',
+    name: 'Shape Hero',
+    category: 'Arcade',
+    description: 'Switch the catchers so every falling shape lands on its match.',
+    help: 'Tap a lane (or choose it with \u25C0 \u25B6 and press Switch) to change the shape of its catcher. Each falling shape must land on a catcher with the same shape. Your weaker eye sees the falling shapes; your stronger eye sees the catchers.',
+    width: 10,
+    height: 16,
+    buttons: ['left', 'action', 'right'],
+    labels: { action: 'Switch' },
+    create(api) {
+      const W = 10;
+      const CY = 14.6;
+      const L = [3, 3, 4][api.difficulty];
+      const K = [3, 4, 5][api.difficulty];
+      const LW = W / L;
+      const g = { score: 0 };
+      const catchers = Array.from({ length: L }, (_, i) => i % K);
+      let sel = Math.floor(L / 2);
+      let showCursor = false;
+      let items = [];
+      let marks = [];
+      let spawn = 1;
+      let t = 0;
+      let lives = 3;
+
+      const laneX = i => i * LW + LW / 2;
+      const turn = i => { catchers[i] = (catchers[i] + 1) % K; };
+
+      g.pointer = (type, x) => {
+        if (type !== 'down') return;
+        showCursor = false;
+        turn(util.clamp(Math.floor(x / LW), 0, L - 1));
+      };
+      g.action = a => {
+        showCursor = true;
+        if (a === 'left') sel = Math.max(0, sel - 1);
+        else if (a === 'right') sel = Math.min(L - 1, sel + 1);
+        else if (a === 'action') turn(sel);
+      };
+      g.update = dt => {
+        t += dt;
+        const speed = [2.6, 3.2, 3.8][api.difficulty] + t * 0.03;
+        spawn -= dt;
+        if (spawn <= 0) {
+          spawn = Math.max(0.5, [1.7, 1.35, 1.1][api.difficulty] - t * 0.006);
+          const free = [];
+          for (let i = 0; i < L; i++) if (!items.some(o => o.lane === i && o.y < 3)) free.push(i);
+          if (free.length) items.push({ lane: util.pick(free), y: -0.8, k: util.randInt(K) });
+        }
+        for (const o of items) {
+          o.y += speed * dt;
+          if (o.y < CY) continue;
+          o.done = true;
+          const ok = catchers[o.lane] === o.k;
+          marks.push({ lane: o.lane, ok, t: 0.4 });
+          if (ok) g.score++;
+          else lives--;
+        }
+        items = items.filter(o => !o.done);
+        marks.forEach(m => { m.t -= dt; });
+        marks = marks.filter(m => m.t > 0);
+        if (lives <= 0) api.gameOver(`Game over \u2013 caught ${g.score}`);
+      };
+      g.draw = rd => {
+        const segs = [];
+        for (let i = 1; i < L; i++) segs.push(i * LW, 0, i * LW, 16);
+        rd.lines(segs, 0.05, 'both', WHITE, 0.25);
+        for (let i = 0; i < L; i++) {
+          rd.box(laneX(i) - 0.85, CY - 0.85, 1.7, 1.7, 0.06, 'both', WHITE, 0.4);
+          symbol(rd, laneX(i), CY, 0.5, catchers[i], 'fellow');
+        }
+        for (const o of items) symbol(rd, laneX(o.lane), o.y, 0.45, o.k, 'amb');
+        for (const m of marks) {
+          const x = laneX(m.lane);
+          if (m.ok) rd.ring(x, CY, 1.1, 0.08, 'both', WHITE, m.t * 2);
+          else rd.lines([x - 0.6, CY - 0.6, x + 0.6, CY + 0.6, x + 0.6, CY - 0.6, x - 0.6, CY + 0.6], 0.1, 'both', [255, 80, 80], m.t * 2);
+        }
+        if (showCursor) rd.box(laneX(sel) - 1, CY - 1, 2, 2, 0.06, 'both', WHITE, 0.8);
+      };
+      g.hud = () => [`Caught ${g.score}`, `Lives ${lives}`];
+      return g;
+    },
+  });
+
+  {
+    const MAZE = [
+      '#############',
+      '#o....#....o#',
+      '#.##.#.#.##.#',
+      '#...........#',
+      '#.##.#.#.##.#',
+      '#....#.#....#',
+      '###.##-##.###',
+      '   .#CCC#.   ',
+      '###.#####.###',
+      '#.....P.....#',
+      '#.##.###.##.#',
+      '#o.#.....#.o#',
+      '##.#.#.#.#.##',
+      '#...........#',
+      '#############',
+    ];
+    const MW = MAZE[0].length;
+    const MH = MAZE.length;
+    const MOVES = [[1, 0], [-1, 0], [0, 1], [0, -1]];
+    const cellAt = (x, y) => MAZE[y][((x % MW) + MW) % MW];
+    const find = ch => {
+      const out = [];
+      MAZE.forEach((row, y) => [...row].forEach((c, x) => { if (c === ch) out.push([x, y]); }));
+      return out;
+    };
+    const START = find('P')[0];
+    const HOUSE = find('C');
+    const EXIT = [6, 5];
+
+    DG.register({
+      id: 'chaser',
+      name: 'Chaser',
+      category: 'Arcade',
+      description: 'Collect every spark in the maze while dodging the chasers.',
+      help: 'Steer with the arrows or by swiping. Collect every spark to clear the maze. Big sparks let you chase the chasers for a few seconds. Your weaker eye sees the chasers and sparks; your stronger eye sees you and the maze.',
+      width: MW,
+      height: MH,
+      buttons: ['left', 'up', 'down', 'right'],
+      swipe: true,
+      create(api) {
+        const count = [2, 3, 3][api.difficulty];
+        const smart = [0.55, 0.75, 0.9][api.difficulty];
+        const scare = [8, 6, 4][api.difficulty];
+        const g = { score: 0 };
+        let level = 1;
+        let lives = 3;
+        let sparks;
+        let player;
+        let chasers;
+        let want = null;
+        let frightened = 0;
+        let eaten = 0;
+        let pause = 0;
+
+        const open = (x, y, ghost) => {
+          const c = cellAt(x, y);
+          return c !== '#' && (c !== '-' || ghost);
+        };
+
+        function fillSparks() {
+          sparks = new Map();
+          MAZE.forEach((row, y) => [...row].forEach((c, x) => {
+            if (c === '.' || c === 'o') sparks.set(`${x},${y}`, c === 'o');
+          }));
+        }
+
+        function resetActors() {
+          player = { x: START[0], y: START[1], dx: 0, dy: 0, p: 0 };
+          chasers = HOUSE.slice(0, count).map(([x, y], i) => ({ x, y, dx: 0, dy: 0, p: 0, home: true, wait: 1 + i * 3 }));
+          want = null;
+          frightened = 0;
+          pause = 1;
+        }
+        fillSparks();
+        resetActors();
+
+        const pos = e => [e.x + e.dx * e.p, e.y + e.dy * e.p];
+        const playerSpeed = () => 4.4 * (1 + (level - 1) * 0.05);
+        const chaserSpeed = c => (c.home ? 2.5 : frightened > 0 ? 2.4 : [3.3, 3.7, 4.1][api.difficulty] * (1 + (level - 1) * 0.05));
+
+        // Advance along the grid; at each tile centre `choose` may change direction.
+        function advance(e, speed, dt, choose) {
+          if (!e.dx && !e.dy) {
+            choose(e);
+            if (!e.dx && !e.dy) return;
+          }
+          e.p += speed * dt;
+          while (e.p >= 1) {
+            e.p -= 1;
+            e.x = (((e.x + e.dx) % MW) + MW) % MW;
+            e.y += e.dy;
+            choose(e);
+            if (!e.dx && !e.dy) {
+              e.p = 0;
+              return;
+            }
+          }
+        }
+
+        function steerPlayer(e) {
+          if (want && open(e.x + want[0], e.y + want[1])) [e.dx, e.dy] = want;
+          else if (!open(e.x + e.dx, e.y + e.dy)) e.dx = e.dy = 0;
+          const key = `${e.x},${e.y}`;
+          if (sparks.has(key)) {
+            if (sparks.get(key)) {
+              g.score += 50;
+              frightened = scare;
+              eaten = 0;
+            } else {
+              g.score += 10;
+            }
+            sparks.delete(key);
+          }
+        }
+
+        function steerChaser(c) {
+          if (c.home && c.y <= EXIT[1]) c.home = false;
+          const options = MOVES.filter(([dx, dy]) => open(c.x + dx, c.y + dy, c.home) && !(dx === -c.dx && dy === -c.dy && (c.dx || c.dy)));
+          const list = options.length ? options : MOVES.filter(([dx, dy]) => open(c.x + dx, c.y + dy, c.home));
+          if (!list.length) return;
+          const [tx, ty] = c.home ? EXIT : [player.x, player.y];
+          const dist = ([dx, dy]) => Math.hypot(c.x + dx - tx, c.y + dy - ty);
+          let choice;
+          if (c.home) choice = list.reduce((a, b) => (dist(b) < dist(a) ? b : a));
+          else if (frightened > 0) choice = Math.random() < 0.7 ? list.reduce((a, b) => (dist(b) > dist(a) ? b : a)) : util.pick(list);
+          else choice = Math.random() < smart ? list.reduce((a, b) => (dist(b) < dist(a) ? b : a)) : util.pick(list);
+          [c.dx, c.dy] = choice;
+        }
+
+        g.action = a => {
+          const d = { left: [-1, 0], right: [1, 0], up: [0, -1], down: [0, 1] }[a];
+          if (!d) return;
+          want = d;
+          if (d[0] === -player.dx && d[1] === -player.dy && (player.dx || player.dy)) {
+            player.x = (((player.x + player.dx) % MW) + MW) % MW;
+            player.y += player.dy;
+            player.dx = d[0];
+            player.dy = d[1];
+            player.p = 1 - player.p;
+          }
+        };
+        g.update = dt => {
+          if (pause > 0) {
+            pause -= dt;
+            return;
+          }
+          frightened = Math.max(0, frightened - dt);
+          advance(player, playerSpeed(), dt, steerPlayer);
+          for (const c of chasers) {
+            if (c.wait > 0) {
+              c.wait -= dt;
+              continue;
+            }
+            advance(c, chaserSpeed(c), dt, steerChaser);
+          }
+          const [px, py] = pos(player);
+          for (const c of chasers) {
+            const [cx, cy] = pos(c);
+            if (c.home || Math.hypot(cx - px, cy - py) > 0.6) continue;
+            if (frightened > 0) {
+              eaten++;
+              g.score += 100 * 2 ** eaten;
+              const [hx, hy] = HOUSE[1];
+              Object.assign(c, { x: hx, y: hy, dx: 0, dy: 0, p: 0, home: true, wait: 2 });
+            } else {
+              lives--;
+              if (lives <= 0) {
+                api.gameOver(`Game over \u2013 score ${g.score}`);
+                return;
+              }
+              resetActors();
+              return;
+            }
+          }
+          if (!sparks.size) {
+            level++;
+            fillSparks();
+            resetActors();
+          }
+        };
+        g.draw = rd => {
+          MAZE.forEach((row, y) => [...row].forEach((c, x) => {
+            if (c === '#') rd.rect(x + 0.1, y + 0.1, 0.8, 0.8, 'fellow', [60, 100, 230], 0.7);
+            else if (c === '-') rd.rect(x, y + 0.45, 1, 0.1, 'fellow', WHITE, 0.6);
+          }));
+          for (const [key, big] of sparks) {
+            const [x, y] = key.split(',').map(Number);
+            rd.circle(x + 0.5, y + 0.5, big ? 0.24 : 0.09, 'amb', [255, 220, 150]);
+          }
+          const blink = frightened > 0 && frightened < 1.5 && Math.floor(frightened * 6) % 2;
+          for (const c of chasers) {
+            const [x, y] = pos(c);
+            if (frightened > 0 && !c.home) rd.ring(x + 0.5, y + 0.5, 0.33, 0.1, 'amb', blink ? WHITE : [120, 160, 255]);
+            else rd.circle(x + 0.5, y + 0.5, 0.38, 'amb', [255, 100, 80]);
+          }
+          const [px, py] = pos(player);
+          rd.circle(px + 0.5, py + 0.5, 0.38, 'fellow', [255, 220, 0]);
+        };
+        g.hud = () => [`Score ${g.score}`, `Lives ${lives}`, `Level ${level}`];
+        return g;
+      },
+    });
+  }
 })();

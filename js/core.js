@@ -70,6 +70,20 @@ const DG = (() => {
     },
   };
 
+  const SYMBOL_COLOURS = [[240, 80, 80], [80, 200, 90], [80, 140, 255], [240, 220, 60], [200, 90, 240], [90, 220, 220], [255, 150, 60]];
+
+  // Shapes stand in for colours, which anaglyph glasses hide.
+  function symbol(rd, x, y, s, t, target, strength = 1) {
+    const col = SYMBOL_COLOURS[t % SYMBOL_COLOURS.length];
+    if (t === 0) rd.circle(x, y, s, target, col, strength);
+    else if (t === 1) rd.poly([x, y - s * 1.2, x + s * 1.1, y + s * 0.8, x - s * 1.1, y + s * 0.8], target, col, strength);
+    else if (t === 2) rd.rect(x - s, y - s, 2 * s, 2 * s, target, col, strength);
+    else if (t === 3) rd.poly([x, y - s * 1.3, x + s * 1.1, y, x, y + s * 1.3, x - s * 1.1, y], target, col, strength);
+    else if (t === 4) rd.lines([x - s, y - s, x + s, y + s, x + s, y - s, x - s, y + s], s * 0.45, target, col, strength);
+    else if (t === 5) rd.lines([x - s * 1.2, y, x + s * 1.2, y, x, y - s * 1.2, x, y + s * 1.2], s * 0.45, target, col, strength);
+    else rd.ring(x, y, s * 0.85, s * 0.35, target, col, strength);
+  }
+
   const otherEye = eye => (eye === 'left' ? 'right' : 'left');
   const rgb = ([r, g, b]) => `rgb(${Math.round(r)},${Math.round(g)},${Math.round(b)})`;
 
@@ -662,6 +676,8 @@ const DG = (() => {
   return {
     util,
     WHITE,
+    SYMBOL_COLOURS,
+    symbol,
     register: def => games.push(def),
   };
 })();

@@ -25,6 +25,8 @@ Arcade games are fast and keep both eyes busy. The moving things you have to rea
 | [Whack-a-Mole](whack-a-mole.md)       | Tap moles before they hide                          | Some moles and bombs         | The other moles and bombs |
 | [Asteroids](asteroids.md)             | Fly a ship and shoot drifting rocks                 | Rocks                        | Your ship and shots       |
 | [Missile Defence](missile-defence.md) | Explode missiles in the sky to protect your cities  | Missiles                     | Cities, base and blasts   |
+| [Shape Hero](shape-hero.md)           | Switch catchers to match the falling shapes         | Falling shapes               | Catchers                  |
+| [Chaser](chaser.md)                   | Collect sparks in a maze while dodging chasers      | Chasers and sparks           | You and the maze          |
 
 ## Good to know
 
