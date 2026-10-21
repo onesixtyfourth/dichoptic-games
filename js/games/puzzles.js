@@ -1994,4 +1994,153 @@
       return g;
     },
   });
+
+  DG.register({
+    id: 'prism',
+    name: 'Prism',
+    category: 'Puzzles',
+    description: 'Turn the mirrors to bounce the light beam onto every target.',
+    help: 'Tap a mirror to turn it. Guide the beam from the light on the left so that it passes through every target. Your weaker eye sees the beam and targets; your stronger eye sees the mirrors and walls.',
+    width: 7,
+    height: 6,
+    buttons: ['left', 'up', 'down', 'right', 'action'],
+    labels: { action: 'Turn' },
+    repeat: ['left', 'up', 'down', 'right'],
+    lowerIsBetter: true,
+    create(api) {
+      const N = [5, 6, 7][api.difficulty];
+      const MIRRORS = [5, 8, 11][api.difficulty];
+      const TARGETS = [2, 3, 4][api.difficulty];
+      const WALLS = [0, 2, 3][api.difficulty];
+      const MIN_BOUNCES = [2, 3, 4][api.difficulty];
+      const EMPTY = 0;
+      const SLASH = 1;
+      const BACK = 2;
+      const WALL = 3;
+      const g = { width: N + 1, height: N };
+      const cur = { x: 0, y: 0 };
+      let grid;
+      let src;
+      let targets;
+      let moves = 0;
+      let showCursor = false;
+
+      // Follows the beam; screen x is grid x + 1 because the light sits in an extra column on the left.
+      function trace() {
+        const cells = new Set();
+        const pts = [0.5, src + 0.5];
+        const seen = new Set();
+        let x = -1;
+        let y = src;
+        let dx = 1;
+        let dy = 0;
+        let bounces = 0;
+        for (;;) {
+          const nx = x + dx;
+          const ny = y + dy;
+          if (nx < 0 || ny < 0 || nx >= N || ny >= N) {
+            pts.push(x + 1.5 + dx * 0.5, y + 0.5 + dy * 0.5);
+            break;
+          }
+          x = nx;
+          y = ny;
+          const c = grid[y][x];
+          if (c === WALL) {
+            pts.push(x + 1.5 - dx * 0.5, y + 0.5 - dy * 0.5);
+            break;
+          }
+          const state = `${x},${y},${dx},${dy}`;
+          if (seen.has(state)) {
+            pts.push(x + 1.5, y + 0.5);
+            break;
+          }
+          seen.add(state);
+          if (c === SLASH || c === BACK) {
+            pts.push(x + 1.5, y + 0.5);
+            [dx, dy] = c === SLASH ? [-dy, -dx] : [dy, dx];
+            bounces++;
+          } else {
+            cells.add(`${x},${y}`);
+          }
+        }
+        return { cells, pts, bounces };
+      }
+
+      const solved = () => {
+        const { cells } = trace();
+        return targets.every(k => cells.has(k));
+      };
+
+      for (let tries = 0; tries < 5000; tries++) {
+        grid = util.grid(N, N, EMPTY);
+        src = util.randInt(N);
+        const spots = util.shuffle([...Array(N * N).keys()]);
+        spots.slice(0, MIRRORS).forEach(i => { grid[Math.floor(i / N)][i % N] = util.pick([SLASH, BACK]); });
+        spots.slice(MIRRORS, MIRRORS + WALLS).forEach(i => { grid[Math.floor(i / N)][i % N] = WALL; });
+        const { cells, bounces } = trace();
+        if (bounces < MIN_BOUNCES || cells.size < TARGETS + 2) continue;
+        // Cells before the first mirror are lit whatever you do, so they make poor targets.
+        const firstRow = new Set([...Array(N).keys()].map(x => `${x},${src}`));
+        const pool = [...cells].filter(k => !firstRow.has(k));
+        if (pool.length < TARGETS) continue;
+        targets = util.shuffle(pool).slice(0, TARGETS);
+        const mirrorCells = [];
+        grid.forEach((row, y) => row.forEach((c, x) => { if (c === SLASH || c === BACK) mirrorCells.push([x, y]); }));
+        for (let k = 0; k < 30 && solved(); k++) {
+          for (const [x, y] of mirrorCells) grid[y][x] = util.pick([SLASH, BACK]);
+        }
+        if (!solved()) break;
+      }
+
+      function turn(x, y) {
+        const c = grid[y][x];
+        if (c !== SLASH && c !== BACK) return;
+        grid[y][x] = c === SLASH ? BACK : SLASH;
+        moves++;
+        if (solved()) {
+          g.score = moves;
+          api.gameOver(`All targets lit in ${moves} moves!`);
+        }
+      }
+
+      g.pointer = (type, x, y) => {
+        const gx = Math.floor(x - 1);
+        const gy = Math.floor(y);
+        if (type !== 'down' || gx < 0 || gy < 0 || gx >= N || gy >= N) return;
+        showCursor = false;
+        turn(gx, gy);
+      };
+      g.action = a => {
+        showCursor = true;
+        if (!moveCursor(cur, a, N, N) && a === 'action') turn(cur.x, cur.y);
+      };
+      g.draw = rd => {
+        const lines = [];
+        for (let k = 0; k <= N; k++) lines.push(1 + k, 0, 1 + k, N, 1, k, 1 + N, k);
+        rd.lines(lines, 0.03, 'both', WHITE, 0.25);
+        grid.forEach((row, y) => row.forEach((c, x) => {
+          const px = x + 1;
+          if (c === WALL) rd.rect(px + 0.08, y + 0.08, 0.84, 0.84, 'fellow', [150, 150, 170], 0.8);
+          else if (c === SLASH) rd.line(px + 0.15, y + 0.85, px + 0.85, y + 0.15, 0.12, 'fellow', [200, 230, 255]);
+          else if (c === BACK) rd.line(px + 0.15, y + 0.15, px + 0.85, y + 0.85, 0.12, 'fellow', [200, 230, 255]);
+        }));
+        const { cells, pts } = trace();
+        for (const k of targets) {
+          const [x, y] = k.split(',').map(Number);
+          if (cells.has(k)) rd.circle(x + 1.5, y + 0.5, 0.26, 'amb', [120, 255, 140]);
+          rd.ring(x + 1.5, y + 0.5, 0.32, 0.07, 'amb', [120, 255, 140]);
+        }
+        const segs = [];
+        for (let i = 2; i < pts.length; i += 2) segs.push(pts[i - 2], pts[i - 1], pts[i], pts[i + 1]);
+        rd.lines(segs, 0.09, 'amb', [255, 220, 80], 0.9);
+        rd.poly([0.15, src + 0.2, 0.85, src + 0.5, 0.15, src + 0.8], 'amb', [255, 220, 80]);
+        if (showCursor) rd.box(cur.x + 1.04, cur.y + 0.04, 0.92, 0.92, 0.05, 'both', WHITE, 0.9);
+      };
+      g.hud = () => {
+        const { cells } = trace();
+        return [`Lit ${targets.filter(k => cells.has(k)).length}/${TARGETS}`, `Moves ${moves}`];
+      };
+      return g;
+    },
+  });
 })();

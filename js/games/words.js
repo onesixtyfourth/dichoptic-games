@@ -379,4 +379,99 @@
       return g;
     },
   });
+
+  DG.register({
+    id: 'wordloom',
+    name: 'Word Loom',
+    category: 'Words',
+    description: 'Tap when the two halves that meet make a real word.',
+    help: 'Two halves slide in from each side and meet in the middle. If they make a real word, tap (or press Word!) before they fade. If they don\u2019t, leave them alone. Your weaker eye sees the left halves; your stronger eye sees the right halves.',
+    width: 10,
+    height: 8,
+    buttons: ['action'],
+    labels: { action: 'Word!' },
+    create(api) {
+      const WORDS = new Set(FIVE);
+      const g = { score: 0 };
+      let lives = 3;
+      let pair;
+      let phase;
+      let timer;
+      let total;
+      let result = null;
+
+      function newPair() {
+        const cut = util.pick([2, 3]);
+        let left;
+        let right;
+        if (Math.random() < 0.5) {
+          const w = util.pick(FIVE);
+          left = w.slice(0, cut);
+          right = w.slice(cut);
+        } else {
+          do {
+            left = util.pick(FIVE).slice(0, cut);
+            right = util.pick(FIVE).slice(cut);
+          } while (WORDS.has(left + right));
+        }
+        pair = { left, right, real: WORDS.has(left + right) };
+        phase = 'in';
+        total = Math.max(0.9, [2.2, 1.8, 1.4][api.difficulty] - g.score * 0.02);
+        timer = total;
+        result = null;
+      }
+      newPair();
+
+      function resolve(tapped) {
+        const ok = tapped === pair.real;
+        if (tapped && ok) g.score++;
+        if (!ok) lives--;
+        result = { ok, tapped };
+        phase = 'result';
+        timer = 1;
+        if (lives <= 0) api.gameOver(`Game over \u2013 ${g.score} words`);
+      }
+
+      const tap = () => {
+        if (phase === 'meet') resolve(true);
+      };
+      g.action = a => {
+        if (a === 'action') tap();
+      };
+      g.pointer = type => {
+        if (type === 'down') tap();
+      };
+      g.update = dt => {
+        timer -= dt;
+        if (timer > 0) return;
+        if (phase === 'in') {
+          phase = 'meet';
+          total = Math.max(0.6, [1.8, 1.4, 1.0][api.difficulty] - g.score * 0.01);
+          timer = total;
+        } else if (phase === 'meet') {
+          resolve(false);
+        } else {
+          newPair();
+        }
+      };
+      g.draw = rd => {
+        const Y = 3.6;
+        rd.line(5, 2.2, 5, 2.6, 0.05, 'both', WHITE, 0.4);
+        rd.line(5, 4.6, 5, 5, 0.05, 'both', WHITE, 0.4);
+        const gap = phase === 'in' ? 0.04 + (timer / total) * 4.6 : 0.04;
+        const fade = phase === 'meet' ? 0.4 + 0.6 * (timer / total) : 1;
+        rd.text(pair.left, 5 - gap, Y, 1.2, 'amb', WHITE, fade, 'right');
+        rd.text(pair.right, 5 + gap, Y, 1.2, 'fellow', WHITE, fade, 'left');
+        if (phase === 'meet') rd.box(1.2, 2.7, 7.6, 1.8, 0.05, 'both', WHITE, 0.5 * (timer / total));
+        if (result) {
+          const word = pair.left + pair.right;
+          const text = pair.real ? `${word} is a word` : `${word} isn\u2019t a word`;
+          rd.text(result.ok ? 'Right!' : result.tapped ? 'Not a word' : 'Missed it', 5, 5.6, 0.6, 'both', result.ok ? [120, 255, 140] : [255, 110, 110]);
+          rd.text(text, 5, 6.5, 0.45, 'both', WHITE, 0.7);
+        }
+      };
+      g.hud = () => [`Words ${g.score}`, `Lives ${lives}`];
+      return g;
+    },
+  });
 })();

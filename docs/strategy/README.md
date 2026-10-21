@@ -20,6 +20,7 @@ Strategy games are turn-based, so there's no rush. In most of them your pieces a
 | [Checkers](checkers.md)             | Jump and capture all the computer's pieces      | Your pieces              | The computer's pieces             |
 | [Battleships](battleships.md)       | Find and sink the computer's fleet              | Hits                     | Misses and your ships             |
 | [Dots and Boxes](dots-and-boxes.md) | Draw lines to complete and claim boxes          | Your lines and boxes     | The computer's lines and boxes    |
+| [Mancala](mancala.md)               | Sow stones and capture more than the computer   | Your stones              | The computer's stones             |
 
 ## Good to know
 

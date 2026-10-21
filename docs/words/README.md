@@ -15,6 +15,7 @@ Word games use letters and themed word lists. The letters are shared between you
 | [Word Search](word-search.md) | Find themed words hidden in a grid of letters  | Half of the letters  | The other half of the letters     |
 | [Word Guess](word-guess.md)   | Guess a five-letter word in six tries          | Letters              | Clues (solid square or outline)   |
 | [Hangman](hangman.md)         | Guess a themed word one letter at a time       | Letters              | Blanks and the drawing            |
+| [Word Loom](word-loom.md)     | Tap when two halves make a real word           | Left halves          | Right halves                      |
 
 ## Themes
 
@@ -22,5 +23,5 @@ Word Search and Hangman pick a theme at random for each puzzle: Animals, Fruit, 
 
 ## Good to know
 
-* Each game keeps going with a new puzzle as soon as you finish one. The top bar counts how many you've solved.
-* Word Search needs touch. Word Guess and Hangman can be played by touch or with a keyboard.
+* Word Search, Word Guess and Hangman keep going with a new puzzle as soon as you finish one, and the top bar counts how many you've solved. Word Loom ends when you run out of lives.
+* Word Search needs touch. Word Guess and Hangman can be played by touch or with a keyboard. Word Loom can be played by touch, keyboard or controller.

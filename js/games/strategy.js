@@ -1319,4 +1319,158 @@
       return g;
     },
   });
+
+  DG.register({
+    id: 'mancala',
+    name: 'Mancala',
+    category: 'Strategy',
+    description: 'Sow stones around the board and capture more than the computer.',
+    help: 'Tap one of your pits (bottom row) to pick up its stones and sow them one at a time anticlockwise. If the last stone lands in your store (right), you go again. If it lands in an empty pit on your side, you capture it and the stones opposite. Most stones in your store wins. Your stones are shown to your weaker eye and the computer\u2019s to your stronger eye.',
+    width: 8,
+    height: 5,
+    buttons: ['left', 'right', 'action'],
+    labels: { action: 'Sow' },
+    create(api) {
+      const STORE = { [YOU]: 6, [CPU]: 13 };
+      const PITS = { [YOU]: [0, 1, 2, 3, 4, 5], [CPU]: [7, 8, 9, 10, 11, 12] };
+      const g = {};
+      let board;
+      let last = -1;
+      let cursor = 0;
+      let showCursor = false;
+      const m = match(g, () => {
+        board = Array(14).fill(4);
+        board[6] = 0;
+        board[13] = 0;
+        last = -1;
+      });
+
+      function sow(b, i, p) {
+        let n = b[i];
+        let k = i;
+        b[i] = 0;
+        while (n) {
+          k = (k + 1) % 14;
+          if (k === STORE[3 - p]) continue;
+          b[k]++;
+          n--;
+        }
+        if (k !== STORE[p] && b[k] === 1 && PITS[p].includes(k) && b[12 - k] > 0) {
+          b[STORE[p]] += b[12 - k] + 1;
+          b[k] = 0;
+          b[12 - k] = 0;
+        }
+        return { again: k === STORE[p], k };
+      }
+      const over = b => PITS[YOU].every(i => !b[i]) || PITS[CPU].every(i => !b[i]);
+      function sweep(b) {
+        for (const p of [YOU, CPU]) {
+          for (const i of PITS[p]) {
+            b[STORE[p]] += b[i];
+            b[i] = 0;
+          }
+        }
+      }
+
+      // Minimax score from the computer's point of view.
+      function search(b, depth, p) {
+        if (over(b)) {
+          const c = b.slice();
+          sweep(c);
+          return (c[13] - c[6]) * 100;
+        }
+        if (depth === 0) return b[13] - b[6];
+        let best = p === CPU ? -Infinity : Infinity;
+        for (const i of PITS[p]) {
+          if (!b[i]) continue;
+          const c = b.slice();
+          const { again } = sow(c, i, p);
+          const s = search(c, depth - 1, again ? p : 3 - p);
+          best = p === CPU ? Math.max(best, s) : Math.min(best, s);
+        }
+        return best;
+      }
+
+      function play(i, p) {
+        const { again, k } = sow(board, i, p);
+        last = k;
+        if (over(board)) {
+          sweep(board);
+          m.finish(board[6] > board[13] ? YOU : board[13] > board[6] ? CPU : 'draw');
+        } else {
+          m.next(again ? p : 3 - p);
+        }
+      }
+
+      function cpuMove() {
+        const moves = PITS[CPU].filter(i => board[i]);
+        if (api.difficulty === 0 && Math.random() < 0.5) {
+          play(util.pick(moves), CPU);
+          return;
+        }
+        const depth = [2, 4, 6][api.difficulty];
+        let best = -Infinity;
+        let choice = moves[0];
+        for (const i of moves) {
+          const c = board.slice();
+          const { again } = sow(c, i, CPU);
+          const s = search(c, depth - 1, again ? CPU : YOU) + Math.random() * 0.5;
+          if (s > best) {
+            best = s;
+            choice = i;
+          }
+        }
+        play(choice, CPU);
+      }
+
+      const tryPlay = i => {
+        if (m.canPlay() && board[i]) play(i, YOU);
+      };
+      const pitX = i => (i < 6 ? 1.5 + i : 1.5 + (12 - i));
+      const pitY = i => (i < 6 ? 3.4 : 1.6);
+
+      g.update = dt => m.update(dt, cpuMove);
+      g.pointer = (type, x, y) => {
+        if (type !== 'down' || y < 2.5 || x < 1 || x >= 7) return;
+        showCursor = false;
+        tryPlay(Math.floor(x - 1));
+      };
+      g.action = a => {
+        showCursor = true;
+        if (a === 'left') cursor = Math.max(0, cursor - 1);
+        else if (a === 'right') cursor = Math.min(5, cursor + 1);
+        else if (a === 'action') tryPlay(cursor);
+      };
+
+      function stones(rd, x, y, n, target, colour) {
+        for (let j = 0; j < Math.min(n, 15); j++) {
+          const ang = j * 2.4;
+          const rad = 0.1 * Math.sqrt(j);
+          rd.circle(x + Math.cos(ang) * rad, y + Math.sin(ang) * rad, 0.065, target, colour);
+        }
+      }
+
+      g.draw = rd => {
+        const eye = p => (p === YOU ? 'amb' : 'fellow');
+        const colour = p => (p === YOU ? [255, 200, 80] : [120, 180, 255]);
+        for (const p of [YOU, CPU]) {
+          for (const i of PITS[p]) {
+            const x = pitX(i);
+            const y = pitY(i);
+            rd.ring(x, y, 0.44, 0.04, 'both', WHITE, 0.4);
+            stones(rd, x, y, board[i], eye(p), colour(p));
+            rd.text(board[i], x, p === YOU ? 4.4 : 0.6, 0.42, eye(p), WHITE);
+          }
+          const sx = p === YOU ? 7 : 0;
+          rd.box(sx + 0.1, 1.1, 0.8, 2.8, 0.04, 'both', WHITE, 0.4);
+          rd.text(board[STORE[p]], sx + 0.5, 2.5, 0.5, eye(p), WHITE);
+        }
+        if (last >= 0 && last !== 6 && last !== 13) rd.ring(pitX(last), pitY(last), 0.5, 0.05, 'both', WHITE, 0.7);
+        if (showCursor && m.canPlay()) rd.box(pitX(cursor) - 0.5, 2.9, 1, 1, 0.05, 'both', WHITE, 0.8);
+      };
+      g.hud = () => [m.hud()[0], `Store ${board[6]}\u2013${board[13]}`, `Won ${m.wins}`, `Lost ${m.losses}`];
+      m.start();
+      return g;
+    },
+  });
 })();

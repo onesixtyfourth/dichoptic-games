@@ -29,6 +29,7 @@ Puzzle games are slower and let you take your time. The pieces of each puzzle ar
 | [Lights Out](lights-out.md)                   | Press squares to switch every light off               | Lights that are on             | Lights that are off            |
 | [Code Breaker](code-breaker.md)               | Work out a hidden code of shapes from clues           | Shapes                         | Clues                          |
 | [Flowgrid](flowgrid.md)                       | Join matching shapes with paths that fill the grid    | Shapes                         | Paths                          |
+| [Prism](prism.md)                             | Turn mirrors to bounce a light beam onto targets      | Beam and targets               | Mirrors and walls              |
 
 ## Good to know
 

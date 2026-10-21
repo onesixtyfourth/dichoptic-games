@@ -1525,4 +1525,191 @@
       },
     });
   }
+
+  DG.register({
+    id: 'eclipse',
+    name: 'Eclipse Runner',
+    category: 'Arcade',
+    description: 'Jump between the inner and outer track to dodge the blocks.',
+    help: 'You run round the ring by yourself. Tap (or press Switch) to jump between the inner and outer track and dodge the blocks. Your weaker eye sees the blocks; your stronger eye sees you.',
+    width: 10,
+    height: 10,
+    buttons: ['action'],
+    labels: { action: 'Switch' },
+    create(api) {
+      const C = 5;
+      const R = [2.6, 3.9];
+      const g = { score: 0 };
+      let a = -Math.PI / 2;
+      let track = 1;
+      let r = R[1];
+      let t = 0;
+      let blocks = [];
+      let nextA = a + 3.2;
+      let lastTrack = 1;
+
+      const flip = () => { track = 1 - track; };
+      g.action = x => {
+        if (x === 'action' || x === 'up' || x === 'down') flip();
+      };
+      g.pointer = type => {
+        if (type === 'down') flip();
+      };
+      g.update = dt => {
+        t += dt;
+        a += ([1.1, 1.35, 1.6][api.difficulty] + t * 0.006) * dt;
+        r += util.clamp(R[track] - r, -12 * dt, 12 * dt);
+        while (nextA < a + 3.6) {
+          const tr = util.randInt(2);
+          // Leave extra room when the next block is on the other track, so there is time to switch.
+          if (tr !== lastTrack) nextA += 0.3;
+          blocks.push({ a: nextA, track: tr });
+          lastTrack = tr;
+          nextA += util.rand(0.55, 1.1) * [1.25, 1, 0.85][api.difficulty];
+        }
+        for (const b of blocks) {
+          if (b.passed) continue;
+          if (a > b.a + 0.25) {
+            b.passed = true;
+            g.score++;
+          } else if (Math.abs(b.a - a) * R[b.track] < 0.55 && Math.abs(r - R[b.track]) < 0.5) {
+            api.gameOver(`Game over \u2013 dodged ${g.score}`);
+            return;
+          }
+        }
+        blocks = blocks.filter(b => a - b.a < 1);
+      };
+      g.draw = rd => {
+        rd.circle(C, C, 1.4, 'both', WHITE, 0.12);
+        rd.ring(C, C, R[0], 0.05, 'both', WHITE, 0.3);
+        rd.ring(C, C, R[1], 0.05, 'both', WHITE, 0.3);
+        for (const b of blocks) {
+          const rr = R[b.track];
+          const x = C + Math.cos(b.a) * rr;
+          const y = C + Math.sin(b.a) * rr;
+          const tx = -Math.sin(b.a) * 0.3;
+          const ty = Math.cos(b.a) * 0.3;
+          const nx = Math.cos(b.a) * 0.3;
+          const ny = Math.sin(b.a) * 0.3;
+          rd.poly([x + tx + nx, y + ty + ny, x - tx + nx, y - ty + ny, x - tx - nx, y - ty - ny, x + tx - nx, y + ty - ny], 'amb', [255, 120, 80]);
+        }
+        rd.circle(C + Math.cos(a) * r, C + Math.sin(a) * r, 0.3, 'fellow', [255, 220, 0]);
+      };
+      g.hud = () => [`Dodged ${g.score}`];
+      return g;
+    },
+  });
+
+  DG.register({
+    id: 'bouncer',
+    name: 'Bouncer',
+    category: 'Arcade',
+    description: 'Slide the platforms so the bouncing ball drops through the gaps.',
+    help: 'Drag sideways (or use \u25C0 \u25B6) to slide every platform. Line up a gap under the ball to drop through, and keep it off the red sections. Drop through three gaps in a row to smash the next platform. Your weaker eye sees the ball and red sections; your stronger eye sees the platforms.',
+    width: 10,
+    height: 16,
+    buttons: ['left', 'right'],
+    create(api) {
+      const W = 10;
+      const BX = 5;
+      const BR = 0.32;
+      const STEP = 3.4;
+      const GRAVITY = 30;
+      const BOUNCE = 10.5;
+      const GW = [2.6, 2.2, 1.8][api.difficulty];
+      const g = { score: 0 };
+      const wrap = v => ((v % W) + W) % W;
+      let off = 0;
+      let by = 3;
+      let vy = 0;
+      let cam = 0;
+      let combo = 0;
+      let dragX = null;
+      let made = 0;
+      let plats = [];
+      let flash = 0;
+
+      function addPlat() {
+        const y = plats.length ? plats[plats.length - 1].y + STEP : 5;
+        const n = made++;
+        const gx = n === 0 ? wrap(BX + 2) : util.rand(0, W);
+        const count = n < 2 ? 0 : util.clamp(Math.floor(n / 6) + api.difficulty, 1, 4);
+        const danger = [];
+        const solid = W - GW - 0.8;
+        const slot = solid / Math.max(1, count);
+        for (let i = 0; i < count; i++) {
+          const w = Math.min(1.6, slot * 0.7);
+          danger.push({ x: wrap(gx + GW + 0.4 + i * slot + util.rand(0, slot - w)), w });
+        }
+        plats.push({ y, gx, danger });
+      }
+      while (plats.length < 8) addPlat();
+
+      g.pointer = (type, x) => {
+        if (type === 'down') dragX = x;
+        else if (type === 'move' && dragX !== null) {
+          off = wrap(off + x - dragX);
+          dragX = x;
+        } else if (type === 'up') dragX = null;
+      };
+      g.update = dt => {
+        off = wrap(off + ((api.held('right') ? 1 : 0) - (api.held('left') ? 1 : 0)) * 7 * dt);
+        flash = Math.max(0, flash - dt);
+        vy += GRAVITY * dt;
+        const prev = by;
+        by += vy * dt;
+        if (vy > 0) {
+          const lx = wrap(BX - off);
+          for (const p of plats) {
+            if (p.gone || prev + BR > p.y || by + BR < p.y) continue;
+            if (wrap(lx - p.gx) < GW) {
+              p.gone = true;
+              combo++;
+              g.score += combo;
+              continue;
+            }
+            if (combo >= 3) {
+              p.gone = true;
+              g.score += combo;
+              combo = 0;
+              flash = 0.3;
+              continue;
+            }
+            if (p.danger.some(s => wrap(lx - s.x) < s.w)) {
+              api.gameOver(`Game over \u2013 score ${g.score}`);
+              return;
+            }
+            by = p.y - BR;
+            vy = -BOUNCE;
+            combo = 0;
+            break;
+          }
+        }
+        cam = Math.max(cam, by - 5);
+        while (plats[plats.length - 1].y < cam + 20) addPlat();
+        plats = plats.filter(p => p.y > cam - 2);
+      };
+      g.draw = rd => {
+        const seg = (start, len, y, target, colour) => {
+          const s = wrap(start + off);
+          if (s + len <= W) rd.rect(s, y, len, 0.4, target, colour);
+          else {
+            rd.rect(s, y, W - s, 0.4, target, colour);
+            rd.rect(0, y, s + len - W, 0.4, target, colour);
+          }
+        };
+        for (const p of plats) {
+          if (p.gone) continue;
+          const y = p.y - cam;
+          seg(p.gx + GW, W - GW, y, 'fellow', [80, 160, 255]);
+          for (const s of p.danger) seg(s.x, s.w, y, 'amb', [255, 70, 70]);
+        }
+        rd.circle(BX, by - cam, BR, 'amb', WHITE);
+        if (combo >= 3) rd.ring(BX, by - cam, BR + 0.2, 0.06, 'amb', [255, 220, 0]);
+        if (flash > 0) rd.ring(BX, by - cam, 1.5 * (1 - flash / 0.3) + 0.4, 0.08, 'both', WHITE, flash * 3);
+      };
+      g.hud = () => (combo >= 2 ? [`Score ${g.score}`, `Combo ${combo}`] : [`Score ${g.score}`]);
+      return g;
+    },
+  });
 })();
