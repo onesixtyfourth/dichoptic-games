@@ -14,6 +14,15 @@ html, body {
 
 body.split { background: #000; }
 
+#safe-probe {
+  position: fixed;
+  top: 0;
+  left: 0;
+  padding-top: env(safe-area-inset-top, 0px);
+  visibility: hidden;
+  pointer-events: none;
+}
+
 #game {
   position: fixed;
   inset: 0;
@@ -29,17 +38,19 @@ body.split { background: #000; }
   right: 0;
   bottom: 0;
   display: grid;
-  grid-template-columns: repeat(6, 1fr);
   gap: 6px;
   padding: 8px 8px calc(8px + env(safe-area-inset-bottom));
+  background: #000;
   touch-action: none;
 }
+
+#controls:empty { display: none; }
 
 body.split #controls { display: none; }
 
 #controls button {
-  height: 64px;
-  font-size: 22px;
+  height: 60px;
+  font-size: 20px;
   color: #bbb;
   background: #555;
   border: none;
@@ -56,22 +67,60 @@ body.split #controls { display: none; }
   display: flex;
   flex-direction: column;
   align-items: center;
-  justify-content: center;
+  justify-content: flex-start;
   gap: 16px;
-  padding: 16px;
+  padding: calc(16px + env(safe-area-inset-top)) 16px calc(16px + env(safe-area-inset-bottom));
   background: rgba(0, 0, 0, 0.9);
   overflow-y: auto;
 }
+
+#check { justify-content: center; }
 
 .hidden { display: none !important; }
 
 .panel {
   width: 100%;
   max-width: 420px;
+  margin: auto 0;
   display: flex;
   flex-direction: column;
   gap: 14px;
 }
+
+.panel.wide { max-width: 760px; }
+
+.row { display: flex; gap: 10px; }
+.row > button { flex: 1; }
+
+h3 {
+  margin: 10px 0 8px;
+  font-size: 14px;
+  font-weight: 600;
+  color: #9a9a9a;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.game-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 10px;
+}
+
+.panel .game-tile {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+  padding: 12px;
+  text-align: left;
+  font-size: 16px;
+  background: #262626;
+}
+
+.game-tile span { font-size: 13px; color: #a0a0a0; }
+
+.game-tile:active { background: #3a3a3a; }
 
 h1, h2 { margin: 0 0 8px; text-align: center; font-weight: 600; }
 
@@ -100,6 +149,7 @@ input[type=range] { width: 100%; }
 button.primary { background: #2a6; border-color: #2a6; color: #fff; }
 
 #menu-status { text-align: center; min-height: 1.2em; margin: 0; }
+#menu-help, #menu-best { text-align: center; }
 
 .disclaimer, .hint { font-size: 13px; color: #999; margin: 0; }
 .disclaimer { text-align: center; }

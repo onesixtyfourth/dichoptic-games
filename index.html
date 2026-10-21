@@ -13,26 +13,32 @@
 <link rel="stylesheet" href="style.css">
 </head>
 <body>
+<div id="safe-probe"></div>
 <canvas id="game"></canvas>
+<div id="controls"></div>
 
-<div id="controls">
-  <button data-action="left" aria-label="Move left">&#9664;</button>
-  <button data-action="rotate" aria-label="Rotate">&#10227;</button>
-  <button data-action="right" aria-label="Move right">&#9654;</button>
-  <button data-action="down" aria-label="Soft drop">&#9660;</button>
-  <button data-action="drop" aria-label="Hard drop">&#10515;</button>
-  <button data-action="pause" aria-label="Pause">&#10074;&#10074;</button>
+<div id="home" class="overlay">
+  <div class="panel wide">
+    <h1>Dichoptic Games</h1>
+    <div class="row">
+      <button id="btn-settings">Settings</button>
+      <button id="btn-check">Check glasses</button>
+    </div>
+    <div id="game-list"></div>
+    <p class="disclaimer">Use only as directed by your orthoptist or eye-care professional. This app is not a medical device.</p>
+  </div>
 </div>
 
-<div id="menu" class="overlay">
+<div id="menu" class="overlay hidden">
   <div class="panel">
-    <h1>Dichoptic Games</h1>
-    <h2>Blocks</h2>
+    <h2 id="menu-title"></h2>
+    <p id="menu-help" class="hint"></p>
     <p id="menu-status"></p>
+    <p id="menu-best" class="hint"></p>
     <button id="btn-play" class="primary">Play</button>
-    <button id="btn-settings">Settings</button>
-    <button id="btn-check">Check glasses</button>
-    <p class="disclaimer">Use only as directed by your orthoptist or eye-care professional. This app is not a medical device.</p>
+    <button id="btn-restart" class="hidden">Restart</button>
+    <button id="btn-menu-settings">Settings</button>
+    <button id="btn-back">All games</button>
   </div>
 </div>
 
@@ -66,13 +72,17 @@
     </label>
     <label>Fellow (stronger) eye contrast: <output id="contrast-out"></output>
       <input type="range" name="fellowContrast" min="0.05" max="1" step="0.05">
-      <span class="hint">Lower it until you can see the falling piece and the stack at the same time. Raise it as your vision improves.</span>
+      <span class="hint">Lower it until you can see what both eyes are shown at the same time. Raise it as your vision improves.</span>
+    </label>
+    <label>Difficulty
+      <select name="difficulty">
+        <option value="0">Easy</option>
+        <option value="1">Normal</option>
+        <option value="2">Hard</option>
+      </select>
     </label>
     <label>Session length (minutes)
       <input type="number" name="sessionMinutes" min="1" max="120" step="1">
-    </label>
-    <label>Starting level
-      <input type="number" name="startLevel" min="1" max="15" step="1">
     </label>
     <button type="submit" class="primary">Save</button>
   </form>
@@ -84,6 +94,10 @@
   <button id="btn-check-done" class="primary">Done</button>
 </div>
 
-<script src="app.js"></script>
+<script src="js/core.js"></script>
+<script src="js/games/arcade.js"></script>
+<script src="js/games/puzzles.js"></script>
+<script src="js/games/strategy.js"></script>
+<script src="js/games/words.js"></script>
 </body>
 </html>

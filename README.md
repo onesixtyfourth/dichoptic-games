@@ -11,7 +11,7 @@ keywords:
 
 Games on your phone, set up as dichoptic exercises. Each eye sees a different part of the game, so the two eyes have to work together to play.
 
-The first game is **Blocks**, a falling-block puzzle game.
+There are 20 games in four groups (arcade, puzzles, strategy and words), so you can switch between them to keep sessions varied.
 
 > [!IMPORTANT]
 > Play now at **<https://onesixtyfourth.github.io/dichoptic-games/>**
@@ -21,15 +21,53 @@ The first game is **Blocks**, a falling-block puzzle game.
 
 ## How it works
 
-Blocks splits what you see between your two eyes:
+Every game splits what you see between your two eyes. The things you need to react to are shown to the amblyopic (weaker) eye at full contrast. The rest of the game is shown to the fellow (stronger) eye at reduced contrast. The border, top bar and timer are shown to both eyes to help them combine the two images.
 
-| What you see                                   | Which eye sees it                           |
-|------------------------------------------------|---------------------------------------------|
-| Falling piece and the "next" preview           | Amblyopic (weaker) eye only, full contrast  |
-| Stack of landed blocks                         | Fellow (stronger) eye only, reduced contrast |
-| Board border, score, lines, level and timer    | Both eyes                                   |
+To play well you need information from both eyes at the same time. Lowering the contrast for the stronger eye stops it from dominating, which encourages the weaker eye to take part.
 
-To place pieces well you need information from both eyes at the same time. Lowering the contrast for the stronger eye stops it from dominating, which encourages the weaker eye to take part.
+## Games
+
+### Arcade
+
+| Game          | Weaker eye sees                  | Stronger eye sees        |
+|---------------|----------------------------------|--------------------------|
+| Blocks        | Falling piece and next piece     | Stack of landed blocks   |
+| Snake         | Snake                            | Food                     |
+| Brick Breaker | Ball and paddle                  | Bricks                   |
+| Table Tennis  | Ball                             | Both paddles             |
+| Flap          | Bird                             | Walls                    |
+| Runner        | Obstacles                        | Runner                   |
+| Traffic Racer | Traffic                          | Your car                 |
+| Space Shooter | Enemies and their shots          | Your ship and shots      |
+| Bubble Pop    | Bubbles                          | Mines to avoid           |
+
+### Puzzles
+
+| Game           | Weaker eye sees              | Stronger eye sees        |
+|----------------|------------------------------|--------------------------|
+| Maze           | You and the exit             | Walls                    |
+| Memory Match   | Card letters                 | Face-down cards          |
+| Sliding Puzzle | Odd-numbered tiles           | Even-numbered tiles      |
+| 2048           | Numbers                      | Tiles                    |
+| Sudoku         | Numbers you enter            | Given numbers            |
+| Mine Sweeper   | Number clues and flags       | Covered squares          |
+
+### Strategy
+
+| Game          | Weaker eye sees | Stronger eye sees     |
+|---------------|-----------------|-----------------------|
+| Tic Tac Toe   | Your X marks    | Computer's O marks    |
+| Four in a Row | Your discs      | Computer's discs      |
+| Gomoku        | Your stones     | Computer's stones     |
+
+### Words
+
+| Game        | Weaker eye sees             | Stronger eye sees                    |
+|-------------|-----------------------------|--------------------------------------|
+| Word Search | Half of the letters         | The other half of the letters        |
+| Word Guess  | Letters                     | Clues (solid square or outline)      |
+
+Each game shows its own instructions before you start. Your best score for each game is saved on your phone.
 
 ## What you need
 
@@ -46,7 +84,7 @@ To place pieces well you need information from both eyes at the same time. Lower
    * On iPhone (Safari), tap **Share** then **Add to Home Screen**.
 3. Tap **Settings** and set your viewing mode, glasses colours, which side the red lens is on, and which eye is your amblyopic eye. Tap **Save**.
 4. Tap **Check glasses** and confirm the colours match your glasses (see [Checking your glasses](#checking-your-glasses)).
-5. Put your glasses on and tap **Play**.
+5. Put your glasses on, pick a game and tap **Play**.
 
 Once installed, the app works offline. Settings are saved on your phone.
 
@@ -59,16 +97,16 @@ When you open the app with an internet connection it always loads the latest ver
 | Viewing mode                     | **Coloured glasses** for anaglyph glasses, or **Split screen (VR viewer)** for a headset                     |
 | Glasses colours                  | Red/blue (default), red/cyan or red/green. Match the lenses you own                                          |
 | Red lens is over the             | Left or right eye. Most glasses have red on the left                                                         |
-| Amblyopic (weaker) eye           | The eye that receives the falling piece                                                                      |
-| Fellow (stronger) eye contrast   | How visible the landed blocks are to the stronger eye (5% to 100%, default 40%)                              |
+| Amblyopic (weaker) eye           | The eye that sees the parts of the game you react to                                                         |
+| Fellow (stronger) eye contrast   | How visible the stronger eye's part of the game is (5% to 100%, default 40%)                                 |
+| Difficulty                       | Easy, Normal or Hard. Changes speed, board size or how well the computer plays, depending on the game         |
 | Session length (minutes)         | Play time before the session ends automatically (default 30)                                                 |
-| Starting level                   | Higher levels make pieces fall faster                                                                        |
 
 ### Choosing the contrast
 
-Start with the contrast your orthoptist recommends. If you have no recommendation, lower the fellow-eye contrast until you can see both the falling piece and the landed blocks at the same time. As your vision improves, raise it gradually towards 100%.
+Start with the contrast your orthoptist recommends. If you have no recommendation, lower the fellow-eye contrast until you can see what both eyes are shown at the same time. As your vision improves, raise it gradually towards 100%.
 
-You can pause the game, open **Settings**, change the contrast and resume without losing your game.
+You can pause a game, open **Settings**, change the contrast or difficulty and resume. Difficulty changes apply when you next start a game.
 
 ## Checking your glasses
 
@@ -81,52 +119,45 @@ If the shapes are swapped, change **Red lens is over the** in Settings. If you c
 
 ## Controls
 
-### Touch (coloured glasses mode)
+### Touch
 
-| Button | Action                 |
-|--------|------------------------|
-| ◀      | Move left (hold to repeat)  |
-| ⟳      | Rotate                 |
-| ▶      | Move right (hold to repeat) |
-| ▼      | Soft drop (hold to repeat)  |
-| ⤓      | Hard drop              |
-| ❚❚     | Pause                  |
+The buttons along the bottom of the screen change to suit each game. Most games can also be played by tapping, dragging or swiping on the game itself. **❚❚** always pauses the game and gives you options to resume, restart, change settings or return to the list of games.
 
-In split-screen mode the on-screen buttons are hidden. Tapping the screen (or the button on a Cardboard viewer) pauses the game.
+In split-screen mode the on-screen buttons are hidden. In games that don't use taps, tapping the screen (or the button on a Cardboard viewer) pauses the game.
 
 ### Keyboard
 
-| Key           | Action    |
-|---------------|-----------|
-| Left / Right  | Move      |
-| Up            | Rotate    |
-| Down          | Soft drop |
-| Space         | Hard drop |
-| P or Escape   | Pause     |
+| Key                  | Action                                        |
+|----------------------|-----------------------------------------------|
+| Arrow keys           | Move, steer or move the selection             |
+| Space or Enter       | Main action (the ● button, or the game's labelled button) |
+| X                    | Second action (the ◆ button)                  |
+| P or Escape          | Pause                                         |
+| Letters and numbers  | Typing in Word Guess and Sudoku               |
 
 ### Game controller
 
-| Button                       | Action    |
-|------------------------------|-----------|
-| D-pad or left stick          | Move and soft drop |
-| D-pad up or A                | Rotate    |
-| B                            | Hard drop |
-| Start                        | Play or pause |
+| Button              | Action          |
+|---------------------|-----------------|
+| D-pad or left stick | Arrow keys      |
+| A                   | Main action     |
+| B                   | Second action   |
+| Start               | Play or pause   |
 
 ## Sessions
 
-The **TIME** counter shows how long is left in the current session. It only counts down while you are playing. When it reaches zero the game stops and shows your score. Pressing **Play** after that starts a fresh session.
+The time on the right of the top bar shows how long is left in the current session. It only counts down while you are playing and carries on across games. When it reaches zero the game stops. Starting a game after that begins a fresh session.
 
-The game also pauses automatically if you switch apps or lock the phone, and keeps the screen awake while you play.
+Games pause automatically if you switch apps or lock the phone, and the screen stays awake while you play.
 
 ## Split screen (VR viewer) mode
 
 1. Pair a Bluetooth game controller or keyboard with your phone.
 2. Select **Split screen (VR viewer)** in Settings and tap **Save**.
-3. Tap **Play**. The game goes full screen and switches to landscape where the phone allows it.
+3. Pick a game and tap **Play**. The game goes full screen and switches to landscape where the phone allows it.
 4. Place the phone in the viewer.
 
-The left half of the screen is shown to the left eye and the right half to the right eye. Pieces keep their normal colours in this mode.
+The left half of the screen is shown to the left eye and the right half to the right eye. Games keep their normal colours in this mode. Arcade games and games with a cursor work best with a controller. Bubble Pop and Word Search need touch, and Word Guess needs touch or a keyboard.
 
 ## Running locally
 
@@ -140,11 +171,19 @@ Then open `http://localhost:8080`. Offline support and screen wake lock need HTT
 
 ## Files
 
-| File                   | Purpose                                     |
-|------------------------|---------------------------------------------|
-| `index.html`           | Page layout, menus and settings form        |
-| `style.css`            | Styling                                     |
-| `app.js`               | Game logic, dichoptic rendering and input   |
-| `sw.js`                | Service worker for offline use              |
-| `manifest.webmanifest` | App manifest for installing to home screen  |
-| `icon.svg`             | App icon                                    |
+| File                   | Purpose                                                      |
+|------------------------|--------------------------------------------------------------|
+| `index.html`           | Page layout, game list, menus and settings form              |
+| `style.css`            | Styling                                                      |
+| `js/core.js`           | Dichoptic rendering, input, menus, sessions and best scores  |
+| `js/games/arcade.js`   | Arcade games                                                 |
+| `js/games/puzzles.js`  | Puzzle games                                                 |
+| `js/games/strategy.js` | Strategy games                                               |
+| `js/games/words.js`    | Word games                                                   |
+| `sw.js`                | Service worker for offline use                               |
+| `manifest.webmanifest` | App manifest for installing to home screen                   |
+| `icon.svg`             | App icon                                                     |
+
+## Adding a game
+
+Each game calls `DG.register()` with its name, category, help text, on-screen buttons and a `create(api)` function. The returned object provides `update`, `draw`, `action`, `pointer` and `hud` as needed. Drawing goes through the renderer passed to `draw`, where every shape names its target: `'amb'` (weaker eye), `'fellow'` (stronger eye) or `'both'`. Add any new script file to `index.html` and to the asset list in `sw.js`.

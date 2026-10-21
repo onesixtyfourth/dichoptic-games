@@ -1,5 +1,16 @@
-const CACHE = 'dichoptic-games-v2';
-const ASSETS = ['./', 'index.html', 'style.css', 'app.js', 'manifest.webmanifest', 'icon.svg'];
+const CACHE = 'dichoptic-games-v3';
+const ASSETS = [
+  './',
+  'index.html',
+  'style.css',
+  'js/core.js',
+  'js/games/arcade.js',
+  'js/games/puzzles.js',
+  'js/games/strategy.js',
+  'js/games/words.js',
+  'manifest.webmanifest',
+  'icon.svg',
+];
 
 self.addEventListener('install', e => {
   self.skipWaiting();
