@@ -301,7 +301,7 @@
     height: 12.3,
     buttons: [],
     create(api) {
-      const LIVES = [8, 6, 5][api.difficulty];
+      const LIVES = [10, 7, 6][api.difficulty];
       const PARTS = [
         [2.5, 5.3, 5.5, 5.3], [3.2, 5.3, 3.2, 0.4], [3.2, 0.4, 6, 0.4], [6, 0.4, 6, 1.1], 'head',
         [6, 2.1, 6, 3.6], [6, 2.6, 5.3, 3.2], [6, 2.6, 6.7, 3.2], [6, 3.6, 5.4, 4.6], [6, 3.6, 6.6, 4.6],
@@ -356,7 +356,8 @@
         if (hit) guess(hit.k);
       };
       g.draw = rd => {
-        const shown = PARTS.slice(0, Math.ceil((wrong / LIVES) * PARTS.length));
+        // Fewer lives means more of the drawing is there from the start; each wrong guess adds one piece.
+        const shown = PARTS.slice(0, PARTS.length - LIVES + wrong);
         rd.lines(shown.filter(p => p !== 'head').flat(), 0.1, 'fellow', WHITE);
         if (shown.includes('head')) rd.ring(6, 1.6, 0.5, 0.1, 'fellow', WHITE);
         const lost = wrong >= LIVES;
