@@ -38,6 +38,17 @@
 
   const ALPHABET = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
 
+  function keyboard(withActions) {
+    const keys = [];
+    'QWERTYUIOP'.split('').forEach((k, i) => keys.push({ k, x: i, y: 8.3, w: 1 }));
+    'ASDFGHJKL'.split('').forEach((k, i) => keys.push({ k, x: 0.5 + i, y: 9.65, w: 1 }));
+    'ZXCVBNM'.split('').forEach((k, i) => keys.push({ k, x: 1.5 + i, y: 11, w: 1 }));
+    if (withActions) keys.push({ k: 'ENTER', x: 0, y: 11, w: 1.5 }, { k: 'DEL', x: 8.5, y: 11, w: 1.5 });
+    return keys;
+  }
+
+  const keyAt = (keys, x, y) => keys.find(key => x >= key.x && x < key.x + key.w && y >= key.y && y < key.y + 1.2);
+
   DG.register({
     id: 'wordsearch',
     name: 'Word Search',
@@ -167,13 +178,7 @@
       const CELL = 1.2;
       const STEP = 1.3;
       const X0 = (10 - (LEN * STEP - 0.1)) / 2;
-      const ROWS = ['QWERTYUIOP', 'ASDFGHJKL', 'ZXCVBNM'];
-      const keys = [];
-      ROWS[0].split('').forEach((k, i) => keys.push({ k, x: i, y: 8.3, w: 1 }));
-      ROWS[1].split('').forEach((k, i) => keys.push({ k, x: 0.5 + i, y: 9.65, w: 1 }));
-      keys.push({ k: 'ENTER', x: 0, y: 11, w: 1.5 });
-      ROWS[2].split('').forEach((k, i) => keys.push({ k, x: 1.5 + i, y: 11, w: 1 }));
-      keys.push({ k: 'DEL', x: 8.5, y: 11, w: 1.5 });
+      const keys = keyboard(true);
 
       const g = { score: 0 };
       let answer;
@@ -252,7 +257,7 @@
       };
       g.pointer = (type, x, y) => {
         if (type !== 'down') return;
-        const hit = keys.find(key => x >= key.x && x < key.x + key.w && y >= key.y && y < key.y + 1.2);
+        const hit = keyAt(keys, x, y);
         if (hit) press(hit.k);
       };
       g.draw = r => {
@@ -282,6 +287,94 @@
         }
       };
       g.hud = () => [message || `Guess ${Math.min(guesses.length + 1, TRIES)}/${TRIES}`, `Solved ${g.score}`];
+      return g;
+    },
+  });
+
+  DG.register({
+    id: 'hangman',
+    name: 'Hangman',
+    category: 'Words',
+    description: 'Guess the hidden word one letter at a time.',
+    help: 'Tap letters (or type) to guess. Each wrong guess adds to the drawing – find the word before it is finished. The theme is shown at the top. Your weaker eye sees the letters; your stronger eye sees the blanks and the drawing.',
+    width: 10,
+    height: 12.3,
+    buttons: [],
+    create(api) {
+      const LIVES = [8, 6, 5][api.difficulty];
+      const PARTS = [
+        [2.5, 5.3, 5.5, 5.3], [3.2, 5.3, 3.2, 0.4], [3.2, 0.4, 6, 0.4], [6, 0.4, 6, 1.1], 'head',
+        [6, 2.1, 6, 3.6], [6, 2.6, 5.3, 3.2], [6, 2.6, 6.7, 3.2], [6, 3.6, 5.4, 4.6], [6, 3.6, 6.6, 4.6],
+      ];
+      const g = { score: 0 };
+      const keys = keyboard(false);
+      let theme;
+      let word;
+      let guessed;
+      let wrong;
+      let message;
+      let nextIn;
+
+      function newRound() {
+        theme = util.pick(Object.keys(THEMES));
+        word = util.pick(THEMES[theme]);
+        guessed = new Set();
+        wrong = 0;
+        message = '';
+        nextIn = 0;
+      }
+      newRound();
+
+      function guess(ch) {
+        if (nextIn > 0 || guessed.has(ch)) return;
+        guessed.add(ch);
+        if (!word.includes(ch)) wrong++;
+        if ([...word].every(c => guessed.has(c))) {
+          g.score++;
+          message = 'Correct!';
+          nextIn = 2.5;
+        } else if (wrong >= LIVES) {
+          message = `It was ${word}`;
+          nextIn = 3.5;
+        }
+      }
+
+      g.update = dt => {
+        if (nextIn > 0) {
+          nextIn -= dt;
+          if (nextIn <= 0) newRound();
+        }
+      };
+      g.key = k => {
+        if (!/^[a-z]$/i.test(k)) return false;
+        guess(k.toUpperCase());
+        return true;
+      };
+      g.pointer = (type, x, y) => {
+        if (type !== 'down') return;
+        const hit = keyAt(keys, x, y);
+        if (hit) guess(hit.k);
+      };
+      g.draw = rd => {
+        const shown = PARTS.slice(0, Math.ceil((wrong / LIVES) * PARTS.length));
+        rd.lines(shown.filter(p => p !== 'head').flat(), 0.1, 'fellow', WHITE);
+        if (shown.includes('head')) rd.ring(6, 1.6, 0.5, 0.1, 'fellow', WHITE);
+        const lost = wrong >= LIVES;
+        const cw = Math.min(1.1, 9.6 / word.length);
+        const x0 = (10 - word.length * cw) / 2;
+        [...word].forEach((ch, i) => {
+          const x = x0 + i * cw;
+          rd.line(x + 0.1, 7.1, x + cw - 0.1, 7.1, 0.06, 'fellow', WHITE);
+          if (guessed.has(ch) || lost) rd.text(ch, x + cw / 2, 6.6, cw * 0.6, 'amb', WHITE, guessed.has(ch) ? 1 : 0.5);
+        });
+        for (const key of keys) {
+          const used = guessed.has(key.k);
+          rd.rect(key.x + 0.05, key.y, key.w - 0.1, 1.2, 'both', WHITE, used ? 0.04 : 0.1);
+          rd.text(key.k, key.x + key.w / 2, key.y + 0.62, 0.5, 'amb', WHITE, used ? 0.25 : 1);
+          if (used && !word.includes(key.k)) rd.line(key.x + 0.2, key.y + 1, key.x + key.w - 0.2, key.y + 0.2, 0.05, 'fellow', WHITE, 0.6);
+        }
+      };
+      g.hud = () => [message || theme, `Wrong ${wrong}/${LIVES}`, `Solved ${g.score}`];
       return g;
     },
   });

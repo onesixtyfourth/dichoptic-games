@@ -1168,4 +1168,155 @@
       return g;
     },
   });
+
+  DG.register({
+    id: 'dotsboxes',
+    name: 'Dots and Boxes',
+    category: 'Strategy',
+    description: 'Draw lines between dots and complete boxes to claim them.',
+    help: 'Tap between two dots to draw a line. Completing a box claims it and gives you another turn. Most boxes wins. Your lines and boxes are shown to your weaker eye and the computer\u2019s to your stronger eye.',
+    width: 5,
+    height: 5,
+    buttons: ['left', 'right', 'action'],
+    labels: { action: 'Draw' },
+    repeat: ['left', 'right'],
+    create(api) {
+      const B = [3, 4, 5][api.difficulty];
+      const g = { width: B + 1, height: B + 1 };
+      // Lines are keyed 'h,x,y' (dot x,y to x+1,y) or 'v,x,y' (dot x,y to x,y+1); the value is who drew it.
+      const all = [];
+      for (let y = 0; y <= B; y++) for (let x = 0; x < B; x++) all.push(`h,${x},${y}`);
+      for (let y = 0; y < B; y++) for (let x = 0; x <= B; x++) all.push(`v,${x},${y}`);
+      let lines;
+      let boxes;
+      let last = null;
+      let cursor = 0;
+      let showCursor = false;
+      const m = match(g, () => {
+        lines = new Map();
+        boxes = util.grid(B, B, 0);
+        last = null;
+      });
+
+      const parse = key => {
+        const [t, x, y] = key.split(',');
+        return [t, Number(x), Number(y)];
+      };
+      const sides = (L, x, y) => [`h,${x},${y}`, `h,${x},${y + 1}`, `v,${x},${y}`, `v,${x + 1},${y}`].filter(k => L.has(k)).length;
+      const boxesOf = key => {
+        const [t, x, y] = parse(key);
+        return t === 'h' ? [[x, y - 1], [x, y]].filter(([, by]) => by >= 0 && by < B) : [[x - 1, y], [x, y]].filter(([bx]) => bx >= 0 && bx < B);
+      };
+      const free = L => all.filter(k => !L.has(k));
+      const completes = (L, key) => boxesOf(key).filter(([x, y]) => sides(L, x, y) === 3).length;
+      const gives = (L, key) => boxesOf(key).some(([x, y]) => sides(L, x, y) === 2);
+      const count = p => boxes.flat().filter(v => v === p).length;
+      const segOf = key => {
+        const [t, x, y] = parse(key);
+        return t === 'h' ? [x + 0.5, y + 0.5, x + 1.5, y + 0.5] : [x + 0.5, y + 0.5, x + 0.5, y + 1.5];
+      };
+
+      function draw(key, p) {
+        lines.set(key, p);
+        last = key;
+        let claimed = 0;
+        for (const [x, y] of boxesOf(key)) {
+          if (sides(lines, x, y) === 4 && !boxes[y][x]) {
+            boxes[y][x] = p;
+            claimed++;
+          }
+        }
+        if (lines.size === all.length) {
+          const you = count(YOU);
+          const cpu = count(CPU);
+          m.finish(you > cpu ? YOU : cpu > you ? CPU : 'draw');
+        } else {
+          m.next(claimed ? p : 3 - p);
+        }
+      }
+
+      // How many boxes the player could then take in a row if the computer draws `key`.
+      function cost(key) {
+        const L = new Map(lines);
+        L.set(key, CPU);
+        let n = 0;
+        for (;;) {
+          const k = free(L).find(f => completes(L, f));
+          if (!k) return n;
+          n += completes(L, k);
+          L.set(k, YOU);
+        }
+      }
+
+      function cpuMove() {
+        const options = free(lines);
+        const take = options.find(k => completes(lines, k));
+        if (api.difficulty === 0) {
+          draw(take && Math.random() < 0.6 ? take : util.pick(options), CPU);
+          return;
+        }
+        if (take) {
+          draw(take, CPU);
+          return;
+        }
+        const safe = options.filter(k => !gives(lines, k));
+        if (safe.length || api.difficulty === 1) {
+          draw(util.pick(safe.length ? safe : options), CPU);
+          return;
+        }
+        let best = Infinity;
+        let choice = options[0];
+        for (const k of options) {
+          const c = cost(k);
+          if (c < best) {
+            best = c;
+            choice = k;
+          }
+        }
+        draw(choice, CPU);
+      }
+
+      g.update = dt => m.update(dt, cpuMove);
+      g.pointer = (type, x, y) => {
+        if (type !== 'down' || !m.canPlay()) return;
+        showCursor = false;
+        let best = null;
+        let bd = 0.45;
+        for (const k of free(lines)) {
+          const [x1, y1, x2, y2] = segOf(k);
+          const d = Math.hypot((x1 + x2) / 2 - x, (y1 + y2) / 2 - y);
+          if (d < bd) {
+            bd = d;
+            best = k;
+          }
+        }
+        if (best) draw(best, YOU);
+      };
+      g.action = a => {
+        showCursor = true;
+        const options = free(lines);
+        if (!options.length) return;
+        if (a === 'left') cursor = (cursor + options.length - 1) % options.length;
+        else if (a === 'right') cursor = (cursor + 1) % options.length;
+        else if (a === 'action' && m.canPlay()) draw(options[cursor % options.length], YOU);
+      };
+      g.draw = rd => {
+        boxes.forEach((row, y) => row.forEach((p, x) => {
+          if (p) rd.rect(x + 0.62, y + 0.62, 0.76, 0.76, p === YOU ? 'amb' : 'fellow', p === YOU ? [255, 80, 80] : [80, 160, 255], 0.35);
+        }));
+        const mine = [];
+        const theirs = [];
+        for (const [k, p] of lines) (p === YOU ? mine : theirs).push(...segOf(k));
+        rd.lines(mine, 0.1, 'amb', [255, 80, 80]);
+        rd.lines(theirs, 0.1, 'fellow', [80, 160, 255]);
+        if (last) rd.line(...segOf(last), 0.22, 'both', WHITE, 0.2);
+        const options = free(lines);
+        if (showCursor && options.length && m.canPlay()) rd.line(...segOf(options[cursor % options.length]), 0.06, 'both', WHITE, 0.6);
+        for (let y = 0; y <= B; y++) for (let x = 0; x <= B; x++) rd.circle(x + 0.5, y + 0.5, 0.09, 'both', WHITE, 0.9);
+      };
+      g.hud = () => [m.hud()[0], `Boxes ${count(YOU)}\u2013${count(CPU)}`, `Won ${m.wins}`, `Lost ${m.losses}`];
+      m.start();
+      return g;
+    },
+  });
 })();

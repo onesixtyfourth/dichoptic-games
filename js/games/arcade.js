@@ -972,4 +972,266 @@
       return g;
     },
   });
+
+  DG.register({
+    id: 'asteroids',
+    name: 'Asteroids',
+    category: 'Arcade',
+    description: 'Turn, thrust and shoot to break up drifting rocks.',
+    help: '\u25C0 \u25B6 turn, Thrust moves you forward and Fire shoots (hold to keep firing). Big rocks split into smaller ones. Your weaker eye sees the rocks; your stronger eye sees your ship and shots.',
+    width: 12,
+    height: 16,
+    buttons: ['left', 'up', 'right', 'action'],
+    labels: { up: 'Thrust', action: 'Fire' },
+    create(api) {
+      const W = 12;
+      const H = 16;
+      const SIZES = [1.0, 0.6, 0.35];
+      const POINTS = [20, 50, 100];
+      const g = { score: 0 };
+      const ship = { x: W / 2, y: H / 2, a: -Math.PI / 2, vx: 0, vy: 0 };
+      let rocks = [];
+      let shots = [];
+      let lives = 3;
+      let invuln = 2;
+      let wave = 0;
+      let cooldown = 0;
+
+      const wrap = o => {
+        o.x = (o.x + W) % W;
+        o.y = (o.y + H) % H;
+      };
+
+      function rock(x, y, size) {
+        const sp = util.rand(0.8, 2) * (1 + size * 0.5) * (1 + api.difficulty * 0.25);
+        const dir = util.rand(0, Math.PI * 2);
+        return { x, y, size, r: SIZES[size], vx: Math.cos(dir) * sp, vy: Math.sin(dir) * sp, rot: 0, spin: util.rand(-1, 1), pts: Array.from({ length: 9 }, () => util.rand(0.75, 1.1)) };
+      }
+
+      function nextWave() {
+        wave++;
+        for (let i = 0; i < 2 + wave + api.difficulty; i++) {
+          let x;
+          let y;
+          do {
+            x = util.rand(0, W);
+            y = util.rand(0, H);
+          } while (Math.hypot(x - ship.x, y - ship.y) < 5);
+          rocks.push(rock(x, y, 0));
+        }
+      }
+      nextWave();
+
+      function fire() {
+        if (cooldown > 0 || shots.length >= 6) return;
+        cooldown = 0.22;
+        const c = Math.cos(ship.a);
+        const s = Math.sin(ship.a);
+        shots.push({ x: ship.x + c * 0.5, y: ship.y + s * 0.5, vx: ship.vx + c * 14, vy: ship.vy + s * 14, life: 0.9 });
+      }
+
+      g.action = a => {
+        if (a === 'action') fire();
+      };
+      g.update = dt => {
+        cooldown -= dt;
+        invuln -= dt;
+        if (api.held('left')) ship.a -= 4 * dt;
+        if (api.held('right')) ship.a += 4 * dt;
+        if (api.held('up')) {
+          ship.vx += Math.cos(ship.a) * 12 * dt;
+          ship.vy += Math.sin(ship.a) * 12 * dt;
+        }
+        if (api.held('action')) fire();
+        const drag = Math.pow(0.5, dt);
+        ship.vx *= drag;
+        ship.vy *= drag;
+        const sp = Math.hypot(ship.vx, ship.vy);
+        if (sp > 9) {
+          ship.vx *= 9 / sp;
+          ship.vy *= 9 / sp;
+        }
+        ship.x += ship.vx * dt;
+        ship.y += ship.vy * dt;
+        wrap(ship);
+        for (const s of shots) {
+          s.x += s.vx * dt;
+          s.y += s.vy * dt;
+          s.life -= dt;
+          wrap(s);
+        }
+        for (const r of rocks) {
+          r.x += r.vx * dt;
+          r.y += r.vy * dt;
+          r.rot += r.spin * dt;
+          wrap(r);
+        }
+        const born = [];
+        for (const r of rocks) {
+          for (const s of shots) {
+            if (r.dead || s.life <= 0 || Math.hypot(r.x - s.x, r.y - s.y) >= r.r) continue;
+            r.dead = true;
+            s.life = 0;
+            g.score += POINTS[r.size];
+            if (r.size < 2) born.push(rock(r.x, r.y, r.size + 1), rock(r.x, r.y, r.size + 1));
+          }
+        }
+        rocks = rocks.filter(r => !r.dead).concat(born);
+        shots = shots.filter(s => s.life > 0);
+        if (invuln <= 0 && rocks.some(r => Math.hypot(r.x - ship.x, r.y - ship.y) < r.r * 0.9 + 0.3)) {
+          lives--;
+          if (lives <= 0) {
+            api.gameOver(`Game over \u2013 score ${g.score}`);
+            return;
+          }
+          Object.assign(ship, { x: W / 2, y: H / 2, vx: 0, vy: 0, a: -Math.PI / 2 });
+          invuln = 2.5;
+        }
+        if (!rocks.length) nextWave();
+      };
+      g.draw = rd => {
+        for (const r of rocks) {
+          const pts = [];
+          r.pts.forEach((k, i) => {
+            const a = r.rot + (i * Math.PI * 2) / r.pts.length;
+            pts.push(r.x + Math.cos(a) * r.r * k, r.y + Math.sin(a) * r.r * k);
+          });
+          rd.poly(pts, 'amb', [200, 160, 120]);
+        }
+        if (invuln <= 0 || Math.floor(invuln * 8) % 2 === 0) {
+          const { x, y, a } = ship;
+          rd.poly([x + Math.cos(a) * 0.55, y + Math.sin(a) * 0.55, x + Math.cos(a + 2.5) * 0.4, y + Math.sin(a + 2.5) * 0.4, x + Math.cos(a - 2.5) * 0.4, y + Math.sin(a - 2.5) * 0.4], 'fellow', [80, 160, 255]);
+          if (api.held('up')) rd.circle(x - Math.cos(a) * 0.45, y - Math.sin(a) * 0.45, 0.12, 'fellow', [255, 180, 60], 0.7);
+        }
+        shots.forEach(s => rd.circle(s.x, s.y, 0.08, 'fellow', WHITE));
+      };
+      g.hud = () => [`Score ${g.score}`, `Lives ${lives}`, `Wave ${wave}`];
+      return g;
+    },
+  });
+
+  DG.register({
+    id: 'missiles',
+    name: 'Missile Defence',
+    category: 'Arcade',
+    description: 'Tap to stop falling missiles before they reach your cities.',
+    help: 'Tap the sky to launch an interceptor that explodes where you tapped, destroying any missiles caught in the blast. Protect your cities for as many waves as you can. Your weaker eye sees the missiles; your stronger eye sees your cities and blasts.',
+    width: 12,
+    height: 16,
+    buttons: ['left', 'up', 'down', 'right', 'action'],
+    labels: { action: 'Fire' },
+    create(api) {
+      const W = 12;
+      const GROUND = 15;
+      const BASE = { x: 6, y: 14.6 };
+      const g = { score: 0 };
+      const cities = [1.2, 2.9, 4.6, 7.4, 9.1, 10.8].map(x => ({ x, alive: true }));
+      const cross = { x: 6, y: 7 };
+      let missiles = [];
+      let interceptors = [];
+      let blasts = [];
+      let wave = 0;
+      let toLaunch = 0;
+      let spawn = 0;
+      let cool = 0;
+
+      function startWave() {
+        wave++;
+        toLaunch = 6 + wave * 2;
+        spawn = 1.5;
+      }
+      startWave();
+
+      function launch() {
+        const tx = util.pick([...cities.filter(c => c.alive).map(c => c.x), BASE.x]);
+        const x = util.rand(0.5, W - 0.5);
+        const speed = (1.1 + wave * 0.15) * (1 + api.difficulty * 0.3);
+        const len = Math.hypot(tx - x, GROUND);
+        missiles.push({ sx: x, sy: 0, x, y: 0, vx: ((tx - x) / len) * speed, vy: (GROUND / len) * speed });
+      }
+
+      function fireAt(x, y) {
+        if (cool > 0 || y >= GROUND - 1) return;
+        cool = 0.25;
+        const len = Math.hypot(x - BASE.x, y - BASE.y);
+        interceptors.push({ x: BASE.x, y: BASE.y, tx: x, ty: y, vx: ((x - BASE.x) / len) * 14, vy: ((y - BASE.y) / len) * 14, left: len });
+      }
+
+      g.pointer = (type, x, y) => {
+        if (type === 'down') fireAt(x, y);
+      };
+      g.action = a => {
+        if (a === 'action') fireAt(cross.x, cross.y);
+      };
+      g.update = dt => {
+        cool -= dt;
+        const axis = (plus, minus) => (api.held(plus) ? 1 : 0) - (api.held(minus) ? 1 : 0);
+        cross.x = util.clamp(cross.x + axis('right', 'left') * 8 * dt, 0.3, W - 0.3);
+        cross.y = util.clamp(cross.y + axis('down', 'up') * 8 * dt, 0.3, GROUND - 1.2);
+        if (toLaunch > 0) {
+          spawn -= dt;
+          if (spawn <= 0) {
+            spawn = util.rand(0.5, 1.6) / (1 + wave * 0.1);
+            launch();
+            toLaunch--;
+          }
+        }
+        for (const m of missiles) {
+          m.x += m.vx * dt;
+          m.y += m.vy * dt;
+        }
+        for (const i of interceptors) {
+          i.x += i.vx * dt;
+          i.y += i.vy * dt;
+          i.left -= 14 * dt;
+          if (i.left <= 0) blasts.push({ x: i.tx, y: i.ty, t: 0, r: 0 });
+        }
+        interceptors = interceptors.filter(i => i.left > 0);
+        for (const b of blasts) {
+          b.t += dt;
+          b.r = b.t < 0.4 ? (b.t / 0.4) * 1.3 : Math.max(0, 1.3 * (1 - (b.t - 0.4) / 0.4));
+        }
+        blasts = blasts.filter(b => b.t < 0.8);
+        for (const m of missiles) {
+          if (blasts.some(b => Math.hypot(b.x - m.x, b.y - m.y) < b.r)) {
+            m.dead = true;
+            g.score += 25;
+          } else if (m.y >= GROUND) {
+            m.dead = true;
+            const hit = cities.find(c => c.alive && Math.abs(c.x - m.x) < 0.8);
+            if (hit) hit.alive = false;
+          }
+        }
+        missiles = missiles.filter(m => !m.dead);
+        if (!cities.some(c => c.alive)) {
+          api.gameOver(`All cities lost \u2013 score ${g.score}`);
+          return;
+        }
+        if (toLaunch === 0 && !missiles.length) {
+          g.score += cities.filter(c => c.alive).length * 100;
+          startWave();
+        }
+      };
+      g.draw = rd => {
+        rd.rect(0, GROUND, W, 0.08, 'both', WHITE, 0.4);
+        for (const c of cities) {
+          if (c.alive) {
+            rd.poly([c.x - 0.5, GROUND, c.x - 0.5, GROUND - 0.5, c.x - 0.2, GROUND - 0.5, c.x - 0.2, GROUND - 0.8, c.x + 0.2, GROUND - 0.8, c.x + 0.2, GROUND - 0.4, c.x + 0.5, GROUND - 0.4, c.x + 0.5, GROUND], 'fellow', [80, 160, 255]);
+          } else {
+            rd.rect(c.x - 0.5, GROUND - 0.12, 1, 0.12, 'fellow', [80, 160, 255], 0.3);
+          }
+        }
+        rd.poly([BASE.x - 0.6, GROUND, BASE.x, BASE.y - 0.3, BASE.x + 0.6, GROUND], 'fellow', [120, 220, 120]);
+        for (const m of missiles) {
+          rd.line(m.sx, m.sy, m.x, m.y, 0.05, 'amb', [255, 120, 80], 0.45);
+          rd.circle(m.x, m.y, 0.13, 'amb', [255, 120, 80]);
+        }
+        interceptors.forEach(i => rd.circle(i.x, i.y, 0.1, 'fellow', WHITE));
+        blasts.forEach(b => rd.circle(b.x, b.y, b.r, 'fellow', [255, 220, 120], 0.6));
+        rd.lines([cross.x - 0.35, cross.y, cross.x + 0.35, cross.y, cross.x, cross.y - 0.35, cross.x, cross.y + 0.35], 0.05, 'both', WHITE, 0.6);
+      };
+      g.hud = () => [`Score ${g.score}`, `Wave ${wave}`, `Cities ${cities.filter(c => c.alive).length}`];
+      return g;
+    },
+  });
 })();

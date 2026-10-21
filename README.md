@@ -11,7 +11,7 @@ keywords:
 
 Games on your phone, set up as dichoptic exercises. Each eye sees a different part of the game, so the two eyes have to work together to play.
 
-There are 33 games in four groups (arcade, puzzles, strategy and words), so you can switch between them to keep sessions varied.
+There are 38 games in four groups (arcade, puzzles, strategy and words), so you can switch between them to keep sessions varied.
 
 > [!IMPORTANT]
 > Play now at **<https://onesixtyfourth.github.io/dichoptic-games/>**
@@ -42,6 +42,8 @@ To play well you need information from both eyes at the same time. Lowering the 
 | Bubble Pop    | Bubbles                          | Mines to avoid           |
 | Lane Dash     | Traffic                          | You                      |
 | Whack-a-Mole  | Some of the moles and bombs      | The other moles and bombs |
+| Asteroids     | Rocks                            | Your ship and shots      |
+| Missile Defence | Incoming missiles              | Your cities and blasts   |
 
 ### Puzzles
 
@@ -60,6 +62,7 @@ To play well you need information from both eyes at the same time. Lowering the 
 | Simon          | Half of the panels           | The other half of the panels |
 | Mahjong Solitaire | Half of the tile symbols  | The other half of the tile symbols |
 | Shape Crush    | Shapes on alternate squares  | Shapes on the other squares |
+| Picture Logic  | Number clues                 | The grid you fill in     |
 
 ### Strategy
 
@@ -72,6 +75,7 @@ To play well you need information from both eyes at the same time. Lowering the 
 | Reversi       | Your pieces     | Computer's pieces     |
 | Checkers      | Your pieces     | Computer's pieces     |
 | Battleships   | Hits            | Misses and your ships |
+| Dots and Boxes | Your lines and boxes | Computer's lines and boxes |
 
 ### Words
 
@@ -79,6 +83,7 @@ To play well you need information from both eyes at the same time. Lowering the 
 |-------------|-----------------------------|--------------------------------------|
 | Word Search | Half of the letters         | The other half of the letters        |
 | Word Guess  | Letters                     | Clues (solid square or outline)      |
+| Hangman     | Letters                     | Blanks and the drawing               |
 
 Each game shows its own instructions before you start. Your best score for each game is saved on your phone.
 

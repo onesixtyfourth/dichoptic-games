@@ -1518,4 +1518,121 @@
       return g;
     },
   });
+
+  DG.register({
+    id: 'nonogram',
+    name: 'Picture Logic',
+    category: 'Puzzles',
+    description: 'Use the number clues to fill in a hidden picture.',
+    help: 'Each number is a run of filled squares in that row or column, in order, with at least one gap between runs. Tap or drag to fill squares; switch to \u2715 mode to mark squares you know are empty. Your weaker eye sees the clues; your stronger eye sees the grid.',
+    width: 8,
+    height: 8,
+    buttons: ['left', 'up', 'down', 'right', 'action', 'alt'],
+    labels: { action: 'Fill', alt: '\u2715' },
+    repeat: ['left', 'up', 'down', 'right'],
+    lowerIsBetter: true,
+    create(api) {
+      const N = [5, 8, 10][api.difficulty];
+      const STEP = 0.62;
+      const runs = line => {
+        const out = [];
+        let n = 0;
+        for (const v of line) {
+          if (v) n++;
+          else if (n) {
+            out.push(n);
+            n = 0;
+          }
+        }
+        if (n) out.push(n);
+        return out.length ? out : [0];
+      };
+      const column = (grid, x) => grid.map(row => row[x]);
+      const same = (a, b) => a.length === b.length && a.every((v, i) => v === b[i]);
+
+      let target;
+      do target = util.grid(N, N, false).map(row => row.map(() => Math.random() < 0.58));
+      while (target.some(row => !row.some(Boolean)));
+      const rowClues = target.map(runs);
+      const colClues = target[0].map((_, x) => runs(column(target, x)));
+      const CL = Math.max(...rowClues.map(c => c.length)) * STEP + 0.3;
+      const CT = Math.max(...colClues.map(c => c.length)) * STEP + 0.3;
+
+      const g = { width: CL + N, height: CT + N };
+      // 0 = empty, 1 = filled, 2 = marked as empty.
+      const cells = util.grid(N, N, 0);
+      const cur = { x: 0, y: 0 };
+      let markMode = false;
+      let paint = null;
+      let showCursor = false;
+      let t = 0;
+
+      const filled = line => line.map(v => v === 1);
+      const rowDone = y => same(runs(filled(cells[y])), rowClues[y]);
+      const colDone = x => same(runs(filled(column(cells, x))), colClues[x]);
+
+      function set(x, y, v) {
+        cells[y][x] = v;
+        if (rowClues.every((_, i) => rowDone(i) && colDone(i))) {
+          g.score = Math.round(t);
+          api.gameOver(`Solved in ${util.formatTime(t * 1000)}!`);
+        }
+      }
+
+      const cellAt = (x, y) => {
+        const cx = Math.floor(x - CL);
+        const cy = Math.floor(y - CT);
+        return cx >= 0 && cy >= 0 && cx < N && cy < N ? [cx, cy] : null;
+      };
+
+      g.update = dt => { t += dt; };
+      g.pointer = (type, x, y) => {
+        const c = cellAt(x, y);
+        if (type === 'down') {
+          if (!c) return;
+          showCursor = false;
+          const want = markMode ? 2 : 1;
+          paint = cells[c[1]][c[0]] === want ? 0 : want;
+          set(c[0], c[1], paint);
+        } else if (type === 'move') {
+          if (paint !== null && c && cells[c[1]][c[0]] !== paint) set(c[0], c[1], paint);
+        } else {
+          paint = null;
+        }
+      };
+      g.action = a => {
+        showCursor = true;
+        if (moveCursor(cur, a, N, N)) return;
+        if (a === 'alt') markMode = !markMode;
+        else if (a === 'action') {
+          const want = markMode ? 2 : 1;
+          set(cur.x, cur.y, cells[cur.y][cur.x] === want ? 0 : want);
+        }
+      };
+      g.draw = rd => {
+        rowClues.forEach((c, y) => {
+          const s = rowDone(y) ? 0.35 : 1;
+          c.forEach((n, i) => rd.text(n, CL - 0.3 - (c.length - 1 - i) * STEP, CT + y + 0.54, 0.42, 'amb', WHITE, s));
+        });
+        colClues.forEach((c, x) => {
+          const s = colDone(x) ? 0.35 : 1;
+          c.forEach((n, i) => rd.text(n, CL + x + 0.5, CT - 0.3 - (c.length - 1 - i) * STEP, 0.42, 'amb', WHITE, s));
+        });
+        const thin = [];
+        const thick = [];
+        for (let k = 0; k <= N; k++) (k % 5 === 0 || k === N ? thick : thin).push(CL + k, CT, CL + k, CT + N, CL, CT + k, CL + N, CT + k);
+        rd.lines(thin, 0.03, 'both', WHITE, 0.3);
+        rd.lines(thick, 0.06, 'both', WHITE, 0.6);
+        cells.forEach((row, y) => row.forEach((v, x) => {
+          const px = CL + x;
+          const py = CT + y;
+          if (v === 1) rd.tile(px, py, 1, 1, 'fellow', [80, 160, 255]);
+          else if (v === 2) rd.lines([px + 0.3, py + 0.3, px + 0.7, py + 0.7, px + 0.7, py + 0.3, px + 0.3, py + 0.7], 0.05, 'fellow', WHITE, 0.6);
+        }));
+        if (showCursor) rd.box(CL + cur.x + 0.06, CT + cur.y + 0.06, 0.88, 0.88, 0.05, 'both', WHITE, 0.8);
+      };
+      g.hud = () => [markMode ? 'Mode: \u2715' : 'Mode: fill', `Time ${util.formatTime(t * 1000)}`];
+      return g;
+    },
+  });
 })();
