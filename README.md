@@ -27,67 +27,46 @@ To play well you need information from both eyes at the same time. Lowering the 
 
 ## Games
 
+Every game has its own page with a full description, how to play, controls, what each eye sees, what the difficulty setting changes, scoring and tips. Start from a category page to see all its games side by side.
+
+| Category                             | Games | What they're like                                    |
+|--------------------------------------|-------|------------------------------------------------------|
+| [Arcade](docs/arcade/README.md)      | 13    | Fast, real-time games where you react to moving objects |
+| [Puzzles](docs/puzzles/README.md)    | 14    | Thinking games played at your own pace               |
+| [Strategy](docs/strategy/README.md)  | 8     | Board and card games against the computer            |
+| [Words](docs/words/README.md)        | 3     | Letter and word games with themed word lists         |
+
 ### Arcade
 
-| Game          | Weaker eye sees                  | Stronger eye sees        |
-|---------------|----------------------------------|--------------------------|
-| Blocks        | Falling piece and next piece     | Stack of landed blocks   |
-| Snake         | Snake                            | Food                     |
-| Brick Breaker | Ball and paddle                  | Bricks                   |
-| Table Tennis  | Ball                             | Both paddles             |
-| Flap          | Bird                             | Walls                    |
-| Runner        | Obstacles                        | Runner                   |
-| Traffic Racer | Traffic                          | Your car                 |
-| Space Shooter | Enemies and their shots          | Your ship and shots      |
-| Bubble Pop    | Bubbles                          | Mines to avoid           |
-| Lane Dash     | Traffic                          | You                      |
-| Whack-a-Mole  | Some of the moles and bombs      | The other moles and bombs |
-| Asteroids     | Rocks                            | Your ship and shots      |
-| Missile Defence | Incoming missiles              | Your cities and blasts   |
+[Blocks](docs/arcade/blocks.md), [Snake](docs/arcade/snake.md), [Brick Breaker](docs/arcade/brick-breaker.md), [Table Tennis](docs/arcade/table-tennis.md), [Flap](docs/arcade/flap.md), [Runner](docs/arcade/runner.md), [Traffic Racer](docs/arcade/traffic-racer.md), [Space Shooter](docs/arcade/space-shooter.md), [Bubble Pop](docs/arcade/bubble-pop.md), [Lane Dash](docs/arcade/lane-dash.md), [Whack-a-Mole](docs/arcade/whack-a-mole.md), [Asteroids](docs/arcade/asteroids.md), [Missile Defence](docs/arcade/missile-defence.md)
 
 ### Puzzles
 
-| Game           | Weaker eye sees              | Stronger eye sees        |
-|----------------|------------------------------|--------------------------|
-| Maze           | You and the exit             | Walls                    |
-| Memory Match   | Card letters                 | Face-down cards          |
-| Sliding Puzzle | Odd-numbered tiles           | Even-numbered tiles      |
-| 2048           | Numbers                      | Tiles                    |
-| Sudoku         | Numbers you enter            | Given numbers            |
-| Mine Sweeper   | Number clues and flags       | Covered squares          |
-| Bubble Shooter | The bubble you fire and aim  | Bubbles on the board     |
-| Link Pairs     | Half of the symbols          | The other half of the symbols |
-| Spot the Difference | Its own version of each differing shape | Its own version of each differing shape |
-| Shape Sort     | Half of the kinds of shape   | The other half of the kinds of shape |
-| Simon          | Half of the panels           | The other half of the panels |
-| Mahjong Solitaire | Half of the tile symbols  | The other half of the tile symbols |
-| Shape Crush    | Shapes on alternate squares  | Shapes on the other squares |
-| Picture Logic  | Number clues                 | The grid you fill in     |
+[Maze](docs/puzzles/maze.md), [Memory Match](docs/puzzles/memory-match.md), [Sliding Puzzle](docs/puzzles/sliding-puzzle.md), [2048](docs/puzzles/2048.md), [Sudoku](docs/puzzles/sudoku.md), [Mine Sweeper](docs/puzzles/mine-sweeper.md), [Bubble Shooter](docs/puzzles/bubble-shooter.md), [Link Pairs](docs/puzzles/link-pairs.md), [Spot the Difference](docs/puzzles/spot-the-difference.md), [Shape Sort](docs/puzzles/shape-sort.md), [Simon](docs/puzzles/simon.md), [Mahjong Solitaire](docs/puzzles/mahjong-solitaire.md), [Shape Crush](docs/puzzles/shape-crush.md), [Picture Logic](docs/puzzles/picture-logic.md)
 
 ### Strategy
 
-| Game          | Weaker eye sees | Stronger eye sees     |
-|---------------|-----------------|-----------------------|
-| Tic Tac Toe   | Your X marks    | Computer's O marks    |
-| Four in a Row | Your discs      | Computer's discs      |
-| Gomoku        | Your stones     | Computer's stones     |
-| Solitaire     | Red cards       | Black cards and face-down cards |
-| Reversi       | Your pieces     | Computer's pieces     |
-| Checkers      | Your pieces     | Computer's pieces     |
-| Battleships   | Hits            | Misses and your ships |
-| Dots and Boxes | Your lines and boxes | Computer's lines and boxes |
+[Tic Tac Toe](docs/strategy/tic-tac-toe.md), [Four in a Row](docs/strategy/four-in-a-row.md), [Gomoku](docs/strategy/gomoku.md), [Solitaire](docs/strategy/solitaire.md), [Reversi](docs/strategy/reversi.md), [Checkers](docs/strategy/checkers.md), [Battleships](docs/strategy/battleships.md), [Dots and Boxes](docs/strategy/dots-and-boxes.md)
 
 ### Words
 
-| Game        | Weaker eye sees             | Stronger eye sees                    |
-|-------------|-----------------------------|--------------------------------------|
-| Word Search | Half of the letters         | The other half of the letters        |
-| Word Guess  | Letters                     | Clues (solid square or outline)      |
-| Hangman     | Letters                     | Blanks and the drawing               |
+[Word Search](docs/words/word-search.md), [Word Guess](docs/words/word-guess.md), [Hangman](docs/words/hangman.md)
 
-Each game shows its own instructions before you start. Your best score for each game is saved on your phone.
+## Using the app
 
-In Spot the Difference the shapes that are the same for both eyes are shown to both. The differences are shapes that only one eye can see, or that look different to each eye. With glasses on they seem to shimmer or flicker.
+The home screen lists every game by category. Tap a game to open its menu.
+
+![Home screen with the list of games](docs/images/home.png)
+
+The game menu shows a short reminder of how to play and your best score. Tap **Play** to start, **Settings** to change settings, or **All games** to go back to the list.
+
+![Game menu for Blocks](docs/images/game-menu.png)
+
+While you're playing, **❚❚** pauses the game. From the pause menu you can resume, restart, change settings or go back to the list of games.
+
+![Pause menu](docs/images/paused.png)
+
+Your best score for each game is saved on your phone and shown in the game menu.
 
 ## What you need
 
@@ -112,6 +91,8 @@ When you open the app with an internet connection it always loads the latest ver
 
 ## Settings
 
+![Settings screen](docs/images/settings.png)
+
 | Setting                          | Description                                                                                                  |
 |----------------------------------|--------------------------------------------------------------------------------------------------------------|
 | Viewing mode                     | **Coloured glasses** for anaglyph glasses, or **Split screen (VR viewer)** for a headset                     |
@@ -131,6 +112,8 @@ You can pause a game, open **Settings**, change the contrast or difficulty and r
 ## Checking your glasses
 
 **Check glasses** shows a circle to the left eye only and a square to the right eye only.
+
+![Check glasses screen](docs/images/check-glasses.png)
 
 1. Close your right eye. You should see only the circle.
 2. Close your left eye. You should see only the square.
@@ -177,7 +160,11 @@ Games pause automatically if you switch apps or lock the phone, and the screen s
 3. Pick a game and tap **Play**. The game goes full screen and switches to landscape where the phone allows it.
 4. Place the phone in the viewer.
 
-The left half of the screen is shown to the left eye and the right half to the right eye. Games keep their normal colours in this mode. Arcade games and games with a cursor work best with a controller. Bubble Pop, Word Search, Solitaire and Spot the Difference need touch, and Word Guess needs touch or a keyboard.
+The left half of the screen is shown to the left eye and the right half to the right eye. Games keep their normal colours in this mode.
+
+![Brick Breaker in split-screen mode, with the ball and paddle on one side and the bricks on the other](docs/images/split-screen.png)
+
+Arcade games and games with a cursor work best with a controller. Bubble Pop, Word Search, Solitaire and Spot the Difference need touch, and Word Guess needs touch or a keyboard.
 
 ## Running locally
 
@@ -203,7 +190,8 @@ Then open `http://localhost:8080`. Offline support and screen wake lock need HTT
 | `sw.js`                | Service worker for offline use                               |
 | `manifest.webmanifest` | App manifest for installing to home screen                   |
 | `icon.svg`             | App icon                                                     |
+| `docs/`                | Category and game pages, with screenshots                    |
 
 ## Adding a game
 
-Each game calls `DG.register()` with its name, category, help text, on-screen buttons and a `create(api)` function. The returned object provides `update`, `draw`, `action`, `pointer` and `hud` as needed. Drawing goes through the renderer passed to `draw`, where every shape names its target: `'amb'` (weaker eye), `'fellow'` (stronger eye) or `'both'`. Add any new script file to `index.html` and to the asset list in `sw.js`.
+Each game calls `DG.register()` with its name, category, help text, on-screen buttons and a `create(api)` function. The returned object provides `update`, `draw`, `action`, `pointer` and `hud` as needed. Drawing goes through the renderer passed to `draw`, where every shape names its target: `'amb'` (weaker eye), `'fellow'` (stronger eye) or `'both'`. Add any new script file to `index.html` and to the asset list in `sw.js`. Then add a page for the game under `docs/<category>/`, with a screenshot in that folder's `images/`, and link it from the category page and this README.
