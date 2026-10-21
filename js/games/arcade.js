@@ -778,4 +778,110 @@
       return g;
     },
   });
+
+  DG.register({
+    id: 'lanedash',
+    name: 'Lane Dash',
+    category: 'Arcade',
+    description: 'Hop across busy roads and fill every goal.',
+    help: 'Hop with the arrows or by swiping. Cross the roads without being hit and land in each empty goal at the top. Your weaker eye sees the traffic; your stronger eye sees you.',
+    width: 9,
+    height: 13,
+    buttons: ['left', 'up', 'down', 'right'],
+    swipe: true,
+    create(api) {
+      const W = 9;
+      const H = 13;
+      const MEDIAN = 6;
+      const GOALS = [0, 2, 4, 6, 8];
+      const g = { score: 0 };
+      const filled = new Set();
+      let lives = 3;
+      let level = 1;
+      let fx = 4;
+      let fy = H - 1;
+      let furthest = fy;
+      let lanes;
+
+      function buildLanes() {
+        lanes = [];
+        for (let y = 1; y < H - 1; y++) {
+          if (y === MEDIAN) {
+            lanes.push(null);
+            continue;
+          }
+          const len = util.pick([1, 1.5, 2, 2.5]);
+          const spacing = len + util.rand(2.2, 4);
+          const n = Math.ceil((W + 3) / spacing);
+          const speed = (util.rand(1.2, 2.6) + level * 0.3 + api.difficulty * 0.4) * (y % 2 ? 1 : -1);
+          lanes.push({ len, speed, span: n * spacing, cars: Array.from({ length: n }, (_, i) => i * spacing) });
+        }
+      }
+      buildLanes();
+
+      const reset = () => {
+        fx = 4;
+        fy = H - 1;
+        furthest = fy;
+      };
+
+      function die() {
+        lives--;
+        if (lives <= 0) api.gameOver(`Game over \u2013 score ${g.score}`);
+        else reset();
+      }
+
+      g.action = a => {
+        const d = { left: [-1, 0], right: [1, 0], up: [0, -1], down: [0, 1] }[a];
+        if (!d) return;
+        fx = util.clamp(fx + d[0], 0, W - 1);
+        fy = util.clamp(fy + d[1], 0, H - 1);
+        if (fy < furthest) {
+          furthest = fy;
+          g.score += 10;
+        }
+        if (fy !== 0) return;
+        if (!GOALS.includes(fx) || filled.has(fx)) {
+          die();
+          return;
+        }
+        filled.add(fx);
+        g.score += 100;
+        if (filled.size === GOALS.length) {
+          filled.clear();
+          level++;
+          g.score += 500;
+          buildLanes();
+        }
+        reset();
+      };
+      g.update = dt => {
+        for (const l of lanes) {
+          if (!l) continue;
+          l.cars = l.cars.map(x => {
+            x += l.speed * dt;
+            if (l.speed > 0 && x > W) x -= l.span;
+            if (l.speed < 0 && x < -l.len) x += l.span;
+            return x;
+          });
+        }
+        const lane = lanes[fy - 1];
+        if (lane && lane.cars.some(x => fx + 0.15 < x + lane.len && fx + 0.85 > x)) die();
+      };
+      g.draw = rd => {
+        rd.rect(0, MEDIAN, W, 1, 'both', WHITE, 0.08);
+        rd.rect(0, H - 1, W, 1, 'both', WHITE, 0.08);
+        for (const x of GOALS) {
+          rd.box(x + 0.1, 0.1, 0.8, 0.8, 0.05, 'both', WHITE, 0.5);
+          if (filled.has(x)) rd.circle(x + 0.5, 0.5, 0.3, 'fellow', [60, 220, 80], 0.7);
+        }
+        lanes.forEach((l, i) => {
+          if (l) l.cars.forEach(x => rd.tile(x, i + 1, l.len, 1, 'amb', RAINBOW[i % RAINBOW.length]));
+        });
+        rd.circle(fx + 0.5, fy + 0.5, 0.35, 'fellow', [60, 220, 80]);
+      };
+      g.hud = () => [`Score ${g.score}`, `Lives ${lives}`, `Level ${level}`];
+      return g;
+    },
+  });
 })();

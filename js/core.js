@@ -234,6 +234,9 @@ const DG = (() => {
         const pad = 5 / v.s;
         // The frame is seen by both eyes to help them fuse the two images.
         r.box(-pad, -pad, w + 2 * pad, h + 2 * pad, 2 / v.s, 'both', WHITE, 0.4);
+        ctx.beginPath();
+        ctx.rect(-pad, -pad, w + 2 * pad, h + 2 * pad);
+        ctx.clip();
         game.draw(r);
       }
       ctx.restore();

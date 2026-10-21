@@ -669,4 +669,172 @@
       return g;
     },
   });
+
+  DG.register({
+    id: 'reversi',
+    name: 'Reversi',
+    category: 'Strategy',
+    description: 'Trap the computer\u2019s pieces to turn them to your side.',
+    help: 'Place a piece so it traps a line of the computer\u2019s pieces between yours; they flip to your side. Dots show where you can play. Most pieces at the end wins. Your pieces are shown to your weaker eye and the computer\u2019s to your stronger eye.',
+    width: 8,
+    height: 8,
+    buttons: ['left', 'up', 'down', 'right', 'action'],
+    labels: { action: 'Place' },
+    repeat: ['left', 'up', 'down', 'right'],
+    create(api) {
+      const N = 8;
+      const D8 = [[1, 0], [-1, 0], [0, 1], [0, -1], [1, 1], [1, -1], [-1, 1], [-1, -1]];
+      const EDGE = [100, -20, 10, 5, 5, 10, -20, 100];
+      const NEAR = [-20, -50, -2, -2, -2, -2, -50, -20];
+      const MID = [10, -2, -1, -1, -1, -1, -2, 10];
+      const INNER = [5, -2, -1, -1, -1, -1, -2, 5];
+      const WEIGHT = [EDGE, NEAR, MID, INNER, INNER, MID, NEAR, EDGE];
+      const g = {};
+      const cur = { x: 3, y: 3 };
+      let board;
+      let lastMove = null;
+      let showCursor = false;
+      const m = match(g, () => {
+        board = util.grid(N, N, 0);
+        board[3][3] = board[4][4] = CPU;
+        board[3][4] = board[4][3] = YOU;
+        lastMove = null;
+      });
+
+      const inside = (x, y) => x >= 0 && y >= 0 && x < N && y < N;
+      const count = (b, p) => b.flat().filter(v => v === p).length;
+
+      function flips(b, x, y, p) {
+        if (b[y][x]) return [];
+        const out = [];
+        for (const [dx, dy] of D8) {
+          const line = [];
+          let cx = x + dx;
+          let cy = y + dy;
+          while (inside(cx, cy) && b[cy][cx] === 3 - p) {
+            line.push([cx, cy]);
+            cx += dx;
+            cy += dy;
+          }
+          if (line.length && inside(cx, cy) && b[cy][cx] === p) out.push(...line);
+        }
+        return out;
+      }
+
+      function movesFor(b, p) {
+        const out = [];
+        for (let y = 0; y < N; y++) {
+          for (let x = 0; x < N; x++) {
+            const f = flips(b, x, y, p);
+            if (f.length) out.push({ x, y, f });
+          }
+        }
+        return out;
+      }
+
+      function apply(b, mv, p) {
+        b[mv.y][mv.x] = p;
+        mv.f.forEach(([fx, fy]) => { b[fy][fx] = p; });
+      }
+
+      function evaluate(b) {
+        let s = 0;
+        for (let y = 0; y < N; y++) {
+          for (let x = 0; x < N; x++) s += b[y][x] === CPU ? WEIGHT[y][x] : b[y][x] === YOU ? -WEIGHT[y][x] : 0;
+        }
+        return s + (movesFor(b, CPU).length - movesFor(b, YOU).length) * 3;
+      }
+
+      // Minimax score from the computer's point of view.
+      function search(b, depth, p, alpha, beta) {
+        if (depth === 0) return evaluate(b);
+        const moves = movesFor(b, p);
+        if (!moves.length) {
+          if (!movesFor(b, 3 - p).length) return (count(b, CPU) - count(b, YOU)) * 1000;
+          return search(b, depth - 1, 3 - p, alpha, beta);
+        }
+        let best = p === CPU ? -Infinity : Infinity;
+        for (const mv of moves) {
+          const c = b.map(row => row.slice());
+          apply(c, mv, p);
+          const s = search(c, depth - 1, 3 - p, alpha, beta);
+          if (p === CPU) {
+            best = Math.max(best, s);
+            alpha = Math.max(alpha, s);
+          } else {
+            best = Math.min(best, s);
+            beta = Math.min(beta, s);
+          }
+          if (alpha >= beta) break;
+        }
+        return best;
+      }
+
+      function play(mv, p) {
+        apply(board, mv, p);
+        lastMove = [mv.x, mv.y];
+        const o = 3 - p;
+        if (movesFor(board, o).length) m.next(o);
+        else if (movesFor(board, p).length) m.next(p);
+        else {
+          const you = count(board, YOU);
+          const cpu = count(board, CPU);
+          m.finish(you > cpu ? YOU : cpu > you ? CPU : 'draw');
+        }
+      }
+
+      function cpuMove() {
+        const moves = movesFor(board, CPU);
+        if (api.difficulty === 0) {
+          play(Math.random() < 0.5 ? util.pick(moves) : moves.reduce((a, b) => (b.f.length > a.f.length ? b : a)), CPU);
+          return;
+        }
+        const depth = api.difficulty === 1 ? 1 : 3;
+        let best = -Infinity;
+        let choice = moves[0];
+        for (const mv of moves) {
+          const c = board.map(row => row.slice());
+          apply(c, mv, CPU);
+          const s = search(c, depth - 1, YOU, -Infinity, Infinity) + Math.random();
+          if (s > best) {
+            best = s;
+            choice = mv;
+          }
+        }
+        play(choice, CPU);
+      }
+
+      function tryPlay(x, y) {
+        if (!m.canPlay()) return;
+        const f = flips(board, x, y, YOU);
+        if (f.length) play({ x, y, f }, YOU);
+      }
+
+      g.update = dt => m.update(dt, cpuMove);
+      g.pointer = (type, x, y) => {
+        if (type !== 'down' || !inside(Math.floor(x), Math.floor(y))) return;
+        showCursor = false;
+        tryPlay(Math.floor(x), Math.floor(y));
+      };
+      g.action = a => {
+        showCursor = true;
+        if (!moveCursor(cur, a, N, N) && a === 'action') tryPlay(cur.x, cur.y);
+      };
+      g.draw = rd => {
+        const segs = [];
+        for (let k = 1; k < N; k++) segs.push(k, 0, k, N, 0, k, N, k);
+        rd.lines(segs, 0.03, 'both', WHITE, 0.3);
+        board.forEach((row, y) => row.forEach((v, x) => {
+          if (v === YOU) rd.circle(x + 0.5, y + 0.5, 0.4, 'amb', [240, 240, 240]);
+          else if (v === CPU) rd.circle(x + 0.5, y + 0.5, 0.4, 'fellow', [80, 160, 255]);
+        }));
+        if (m.canPlay()) movesFor(board, YOU).forEach(mv => rd.circle(mv.x + 0.5, mv.y + 0.5, 0.08, 'both', WHITE, 0.5));
+        if (lastMove) rd.ring(lastMove[0] + 0.5, lastMove[1] + 0.5, 0.46, 0.04, 'both', WHITE, 0.6);
+        if (showCursor) rd.box(cur.x + 0.05, cur.y + 0.05, 0.9, 0.9, 0.05, 'both', WHITE, 0.8);
+      };
+      g.hud = () => [m.hud()[0], `Pieces ${count(board, YOU)}\u2013${count(board, CPU)}`, `Won ${m.wins}`, `Lost ${m.losses}`];
+      m.start();
+      return g;
+    },
+  });
 })();

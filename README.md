@@ -11,7 +11,7 @@ keywords:
 
 Games on your phone, set up as dichoptic exercises. Each eye sees a different part of the game, so the two eyes have to work together to play.
 
-There are 23 games in four groups (arcade, puzzles, strategy and words), so you can switch between them to keep sessions varied.
+There are 28 games in four groups (arcade, puzzles, strategy and words), so you can switch between them to keep sessions varied.
 
 > [!IMPORTANT]
 > Play now at **<https://onesixtyfourth.github.io/dichoptic-games/>**
@@ -40,6 +40,7 @@ To play well you need information from both eyes at the same time. Lowering the 
 | Traffic Racer | Traffic                          | Your car                 |
 | Space Shooter | Enemies and their shots          | Your ship and shots      |
 | Bubble Pop    | Bubbles                          | Mines to avoid           |
+| Lane Dash     | Traffic                          | You                      |
 
 ### Puzzles
 
@@ -53,6 +54,9 @@ To play well you need information from both eyes at the same time. Lowering the 
 | Mine Sweeper   | Number clues and flags       | Covered squares          |
 | Bubble Shooter | The bubble you fire and aim  | Bubbles on the board     |
 | Link Pairs     | Half of the symbols          | The other half of the symbols |
+| Spot the Difference | Its own version of each differing shape | Its own version of each differing shape |
+| Shape Sort     | Half of the kinds of shape   | The other half of the kinds of shape |
+| Simon          | Half of the panels           | The other half of the panels |
 
 ### Strategy
 
@@ -62,6 +66,7 @@ To play well you need information from both eyes at the same time. Lowering the 
 | Four in a Row | Your discs      | Computer's discs      |
 | Gomoku        | Your stones     | Computer's stones     |
 | Solitaire     | Red cards       | Black cards and face-down cards |
+| Reversi       | Your pieces     | Computer's pieces     |
 
 ### Words
 
@@ -71,6 +76,8 @@ To play well you need information from both eyes at the same time. Lowering the 
 | Word Guess  | Letters                     | Clues (solid square or outline)      |
 
 Each game shows its own instructions before you start. Your best score for each game is saved on your phone.
+
+In Spot the Difference the shapes that are the same for both eyes are shown to both. The differences are shapes that only one eye can see, or that look different to each eye. With glasses on they seem to shimmer or flicker.
 
 ## What you need
 
@@ -160,7 +167,7 @@ Games pause automatically if you switch apps or lock the phone, and the screen s
 3. Pick a game and tap **Play**. The game goes full screen and switches to landscape where the phone allows it.
 4. Place the phone in the viewer.
 
-The left half of the screen is shown to the left eye and the right half to the right eye. Games keep their normal colours in this mode. Arcade games and games with a cursor work best with a controller. Bubble Pop, Word Search and Solitaire need touch, and Word Guess needs touch or a keyboard.
+The left half of the screen is shown to the left eye and the right half to the right eye. Games keep their normal colours in this mode. Arcade games and games with a cursor work best with a controller. Bubble Pop, Word Search, Solitaire and Spot the Difference need touch, and Word Guess needs touch or a keyboard.
 
 ## Running locally
 

@@ -12,6 +12,20 @@
     return true;
   }
 
+  const SYMBOL_COLOURS = [[240, 80, 80], [80, 200, 90], [80, 140, 255], [240, 220, 60], [200, 90, 240], [90, 220, 220], [255, 150, 60]];
+
+  // Shapes stand in for colours, which anaglyph glasses hide.
+  function symbol(rd, x, y, s, t, target, strength = 1) {
+    const col = SYMBOL_COLOURS[t % SYMBOL_COLOURS.length];
+    if (t === 0) rd.circle(x, y, s, target, col, strength);
+    else if (t === 1) rd.poly([x, y - s * 1.2, x + s * 1.1, y + s * 0.8, x - s * 1.1, y + s * 0.8], target, col, strength);
+    else if (t === 2) rd.rect(x - s, y - s, 2 * s, 2 * s, target, col, strength);
+    else if (t === 3) rd.poly([x, y - s * 1.3, x + s * 1.1, y, x, y + s * 1.3, x - s * 1.1, y], target, col, strength);
+    else if (t === 4) rd.lines([x - s, y - s, x + s, y + s, x + s, y - s, x - s, y + s], s * 0.45, target, col, strength);
+    else if (t === 5) rd.lines([x - s * 1.2, y, x + s * 1.2, y, x, y - s * 1.2, x, y + s * 1.2], s * 0.45, target, col, strength);
+    else rd.ring(x, y, s * 0.85, s * 0.35, target, col, strength);
+  }
+
   DG.register({
     id: 'maze',
     name: 'Maze',
@@ -580,7 +594,6 @@
       const TYPES = [4, 5, 6][api.difficulty];
       const SHOTS = [7, 6, 5][api.difficulty];
       const START_ROWS = [5, 6, 7][api.difficulty];
-      const COLOURS = [[240, 80, 80], [80, 200, 90], [80, 140, 255], [240, 220, 60], [200, 90, 240], [90, 220, 220]];
       const g = { score: 0 };
       let grid = util.grid(COLS, ROWS, -1);
       // Toggled whenever a row is pushed in from the top, so existing rows keep their offset.
@@ -729,15 +742,8 @@
       };
 
       function bubble(rd, x, y, t, target, strength = 1) {
-        const col = COLOURS[t];
-        const s = 0.2;
-        rd.ring(x, y, 0.42, 0.07, target, col, strength);
-        if (t === 0) rd.circle(x, y, s, target, col, strength);
-        else if (t === 1) rd.poly([x, y - s * 1.2, x + s * 1.1, y + s * 0.8, x - s * 1.1, y + s * 0.8], target, col, strength);
-        else if (t === 2) rd.rect(x - s, y - s, 2 * s, 2 * s, target, col, strength);
-        else if (t === 3) rd.poly([x, y - s * 1.3, x + s * 1.1, y, x, y + s * 1.3, x - s * 1.1, y], target, col, strength);
-        else if (t === 4) rd.lines([x - s, y - s, x + s, y + s, x + s, y - s, x - s, y + s], 0.09, target, col, strength);
-        else rd.lines([x - s * 1.2, y, x + s * 1.2, y, x, y - s * 1.2, x, y + s * 1.2], 0.09, target, col, strength);
+        rd.ring(x, y, 0.42, 0.07, target, SYMBOL_COLOURS[t], strength);
+        symbol(rd, x, y, 0.2, t, target, strength);
       }
 
       g.draw = rd => {
@@ -909,6 +915,295 @@
         }
       };
       g.hud = () => [`Pairs left ${left / 2}`, `Time ${util.formatTime(t * 1000)}`];
+      return g;
+    },
+  });
+
+  DG.register({
+    id: 'spotdiff',
+    name: 'Spot the Difference',
+    category: 'Puzzles',
+    description: 'Each eye sees a slightly different picture. Find the differences.',
+    help: 'Your two eyes are shown almost the same picture. Shapes that only one eye can see, or that look different to each eye, seem to shimmer or flicker. Tap each one you spot.',
+    width: 10,
+    height: 14,
+    buttons: [],
+    create(api) {
+      const W = 10;
+      const H = 14;
+      const count = [5, 7, 9][api.difficulty];
+      const total = [16, 20, 24][api.difficulty];
+      const g = { score: 0 };
+      let shapes;
+      let diffs;
+      let misses = 0;
+      let flash = null;
+      let nextIn = 0;
+
+      function build() {
+        shapes = [];
+        for (let tries = 0; shapes.length < total && tries < 3000; tries++) {
+          const s = util.rand(0.35, 0.6);
+          const x = util.rand(0.8, W - 0.8);
+          const y = util.rand(0.8, H - 0.8);
+          if (!shapes.some(o => Math.hypot(o.x - x, o.y - y) < o.s + s + 0.5)) shapes.push({ x, y, s, t: util.randInt(7) });
+        }
+        diffs = util.shuffle(shapes.slice()).slice(0, count);
+        for (const d of diffs) {
+          d.kind = util.pick(['amb', 'fellow', 'swap', 'size']);
+          d.found = false;
+          if (d.kind === 'swap') {
+            do d.t2 = util.randInt(7);
+            while (d.t2 === d.t);
+          }
+        }
+      }
+      build();
+
+      g.update = dt => {
+        if (flash) {
+          flash.t -= dt;
+          if (flash.t <= 0) flash = null;
+        }
+        if (nextIn > 0) {
+          nextIn -= dt;
+          if (nextIn <= 0) build();
+        }
+      };
+      g.pointer = (type, x, y) => {
+        if (type !== 'down' || nextIn > 0) return;
+        const d = diffs.find(o => !o.found && Math.hypot(o.x - x, o.y - y) < o.s + 0.5);
+        if (d) {
+          d.found = true;
+          if (diffs.every(o => o.found)) {
+            g.score++;
+            nextIn = 1.5;
+          }
+        } else {
+          misses++;
+          flash = { x, y, t: 0.5 };
+        }
+      };
+      g.draw = rd => {
+        for (const o of shapes) {
+          if (!o.kind || o.found) {
+            symbol(rd, o.x, o.y, o.s, o.t, 'both', 0.7);
+            if (o.found) rd.ring(o.x, o.y, o.s + 0.3, 0.06, 'both', WHITE, 0.9);
+          } else if (o.kind === 'amb' || o.kind === 'fellow') {
+            symbol(rd, o.x, o.y, o.s, o.t, o.kind);
+          } else if (o.kind === 'swap') {
+            symbol(rd, o.x, o.y, o.s, o.t, 'amb');
+            symbol(rd, o.x, o.y, o.s, o.t2, 'fellow');
+          } else {
+            symbol(rd, o.x, o.y, o.s * 0.6, o.t, 'amb');
+            symbol(rd, o.x, o.y, o.s * 1.2, o.t, 'fellow');
+          }
+        }
+        if (flash) rd.lines([flash.x - 0.3, flash.y - 0.3, flash.x + 0.3, flash.y + 0.3, flash.x + 0.3, flash.y - 0.3, flash.x - 0.3, flash.y + 0.3], 0.08, 'both', WHITE, 0.6);
+      };
+      g.hud = () => [`Found ${diffs.filter(o => o.found).length}/${count}`, `Misses ${misses}`, `Pictures ${g.score}`];
+      return g;
+    },
+  });
+
+  DG.register({
+    id: 'shapesort',
+    name: 'Shape Sort',
+    category: 'Puzzles',
+    description: 'Move shapes between tubes until each tube holds one kind.',
+    help: 'Tap a tube to pick up its top shapes, then tap another tube to drop them. You can only drop onto the same shape or into an empty tube. Half the kinds of shape are shown to your weaker eye and half to your stronger eye.',
+    width: 8,
+    height: 11.2,
+    buttons: ['left', 'action', 'right', 'alt'],
+    labels: { action: 'Pick', alt: 'Undo' },
+    lowerIsBetter: true,
+    create(api) {
+      const KINDS = [4, 5, 7][api.difficulty];
+      const CAP = 4;
+      const T = KINDS + 2;
+      const perRow = T > 5 ? Math.ceil(T / 2) : T;
+      const rows = Math.ceil(T / perRow);
+      const CW = 1.3;
+      const CH = 5.6;
+      const g = { width: perRow * CW, height: rows * CH };
+      const balls = util.shuffle(Array.from({ length: KINDS * CAP }, (_, i) => i % KINDS));
+      const tubes = Array.from({ length: T }, (_, i) => (i < KINDS ? balls.slice(i * CAP, (i + 1) * CAP) : []));
+      const history = [];
+      let sel = null;
+      let cursor = 0;
+      let moves = 0;
+      let showCursor = false;
+
+      function pos(i) {
+        const row = Math.floor(i / perRow);
+        const inRow = row === rows - 1 ? T - perRow * (rows - 1) : perRow;
+        return { x: (i % perRow) * CW + (CW - 1) / 2 + ((perRow - inRow) * CW) / 2, y: row * CH + 1.2 };
+      }
+
+      function topRun(tube) {
+        let n = 0;
+        for (let k = tube.length - 1; k >= 0 && tube[k] === tube[tube.length - 1]; k--) n++;
+        return n;
+      }
+
+      function pour(a, b) {
+        const A = tubes[a];
+        const B = tubes[b];
+        if (!A.length || B.length >= CAP || (B.length && B[B.length - 1] !== A[A.length - 1])) return false;
+        history.push(tubes.map(tube => tube.slice()));
+        const n = Math.min(topRun(A), CAP - B.length);
+        for (let k = 0; k < n; k++) B.push(A.pop());
+        moves++;
+        return true;
+      }
+
+      const solved = () => tubes.every(tube => !tube.length || (tube.length === CAP && tube.every(v => v === tube[0])));
+
+      function tap(i) {
+        if (sel === null || sel === i) {
+          sel = sel === null && tubes[i].length ? i : null;
+          return;
+        }
+        if (pour(sel, i)) {
+          sel = null;
+          if (solved()) {
+            g.score = moves;
+            api.gameOver(`Sorted in ${moves} moves!`);
+          }
+        } else {
+          sel = tubes[i].length ? i : null;
+        }
+      }
+
+      function undo() {
+        if (!history.length) return;
+        history.pop().forEach((tube, i) => { tubes[i] = tube; });
+        moves++;
+        sel = null;
+      }
+
+      g.pointer = (type, x, y) => {
+        if (type !== 'down') return;
+        for (let i = 0; i < T; i++) {
+          const p = pos(i);
+          if (x >= p.x - 0.15 && x <= p.x + 1.15 && y >= p.y - 1.2 && y <= p.y + 4.4) {
+            showCursor = false;
+            tap(i);
+            return;
+          }
+        }
+      };
+      g.action = a => {
+        showCursor = true;
+        if (a === 'left') cursor = (cursor + T - 1) % T;
+        else if (a === 'right') cursor = (cursor + 1) % T;
+        else if (a === 'action') tap(cursor);
+        else if (a === 'alt') undo();
+      };
+      g.draw = rd => {
+        tubes.forEach((tube, i) => {
+          const { x, y } = pos(i);
+          rd.lines([x, y, x, y + 4.2, x, y + 4.2, x + 1, y + 4.2, x + 1, y + 4.2, x + 1, y], 0.05, 'both', WHITE, 0.4);
+          const lift = sel === i ? topRun(tube) : 0;
+          tube.forEach((t, j) => {
+            const cy = y + 3.7 - j * 1.0 - (j >= tube.length - lift ? 1.0 : 0);
+            symbol(rd, x + 0.5, cy, 0.32, t, t % 2 ? 'fellow' : 'amb');
+          });
+          if (showCursor && cursor === i) rd.box(x - 0.1, y - 1.1, 1.2, 5.45, 0.05, 'both', WHITE, 0.7);
+        });
+      };
+      g.hud = () => [`Moves ${moves}`];
+      return g;
+    },
+  });
+
+  DG.register({
+    id: 'simon',
+    name: 'Simon',
+    category: 'Puzzles',
+    description: 'Watch the panels light up, then repeat the sequence.',
+    help: 'Watch the sequence, then tap the panels in the same order. It gets one step longer each round. Panels alternate between your weaker and stronger eye.',
+    width: 2,
+    height: 2,
+    buttons: ['left', 'up', 'down', 'right', 'action'],
+    labels: { action: 'Press' },
+    create(api) {
+      const [C, R] = api.difficulty === 2 ? [3, 2] : [2, 2];
+      const N = C * R;
+      const step = [0.75, 0.6, 0.45][api.difficulty];
+      const COLS = [[240, 80, 80], [80, 200, 90], [80, 140, 255], [240, 220, 60], [200, 90, 240], [90, 220, 220]];
+      const g = { score: 0, width: C, height: R };
+      const seq = [];
+      const cur = { x: 0, y: 0 };
+      let phase = 'wait';
+      let idx = 0;
+      let timer = 0.8;
+      let lit = -1;
+      let litT = 0;
+      let showCursor = false;
+
+      const eye = i => ((i % C) + Math.floor(i / C)) % 2 ? 'fellow' : 'amb';
+      const light = (i, t) => {
+        lit = i;
+        litT = t;
+      };
+
+      function press(i) {
+        if (phase !== 'input') return;
+        light(i, 0.25);
+        if (seq[idx] !== i) {
+          phase = 'over';
+          api.gameOver(`You remembered ${seq.length - 1} step${seq.length === 2 ? '' : 's'}`);
+          return;
+        }
+        idx++;
+        if (idx === seq.length) {
+          g.score = seq.length;
+          phase = 'wait';
+          timer = 0.9;
+        }
+      }
+
+      g.update = dt => {
+        if (litT > 0) {
+          litT -= dt;
+          if (litT <= 0) lit = -1;
+        }
+        if (phase !== 'wait' && phase !== 'show') return;
+        timer -= dt;
+        if (timer > 0) return;
+        if (phase === 'wait') {
+          seq.push(util.randInt(N));
+          phase = 'show';
+          idx = 0;
+          timer = 0.3;
+        } else if (idx < seq.length) {
+          light(seq[idx++], step * 0.7);
+          timer = step;
+        } else {
+          phase = 'input';
+          idx = 0;
+        }
+      };
+      g.pointer = (type, x, y) => {
+        if (type !== 'down' || x < 0 || y < 0 || x >= C || y >= R) return;
+        showCursor = false;
+        press(Math.floor(y) * C + Math.floor(x));
+      };
+      g.action = a => {
+        showCursor = true;
+        if (!moveCursor(cur, a, C, R) && a === 'action') press(cur.y * C + cur.x);
+      };
+      g.draw = rd => {
+        for (let i = 0; i < N; i++) {
+          const x = i % C;
+          const y = Math.floor(i / C);
+          rd.box(x + 0.06, y + 0.06, 0.88, 0.88, 0.03, 'both', WHITE, 0.3);
+          rd.tile(x + 0.08, y + 0.08, 0.84, 0.84, eye(i), COLS[i], lit === i ? 1 : 0.18);
+        }
+        if (showCursor) rd.box(cur.x + 0.02, cur.y + 0.02, 0.96, 0.96, 0.04, 'both', WHITE, 0.8);
+      };
+      g.hud = () => [phase === 'show' ? 'Watch\u2026' : phase === 'input' ? 'Your turn' : 'Get ready', `Length ${seq.length}`];
       return g;
     },
   });
