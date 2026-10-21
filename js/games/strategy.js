@@ -1473,4 +1473,354 @@
       return g;
     },
   });
+
+  {
+    const VALUE = { p: 100, n: 320, b: 330, r: 500, q: 900, k: 0 };
+    const GLYPH = { k: '\u265A', q: '\u265B', r: '\u265C', b: '\u265D', n: '\u265E' };
+    const BACK = ['r', 'n', 'b', 'q', 'k', 'b', 'n', 'r'];
+    const KNIGHT = [[1, 2], [2, 1], [2, -1], [1, -2], [-1, -2], [-2, -1], [-2, 1], [-1, 2]];
+    const KING = [[1, 0], [1, 1], [0, 1], [-1, 1], [-1, 0], [-1, -1], [0, -1], [1, -1]];
+    const ROOK = [[1, 0], [-1, 0], [0, 1], [0, -1]];
+    const BISHOP = [[1, 1], [1, -1], [-1, 1], [-1, -1]];
+    const MATE = 100000;
+    // Castling rights as bits: your king side, your queen side, computer king side, computer queen side.
+    const RIGHTS = { [YOU]: { k: 1, q: 2 }, [CPU]: { k: 4, q: 8 } };
+    const at = (x, y) => y * 8 + x;
+    const on = (x, y) => x >= 0 && y >= 0 && x < 8 && y < 8;
+    const fwd = c => (c === YOU ? -1 : 1);
+    const home = c => (c === YOU ? 7 : 0);
+
+    function initial(turn) {
+      const b = Array(64).fill(null);
+      BACK.forEach((t, x) => {
+        b[at(x, 0)] = { t, c: CPU };
+        b[at(x, 1)] = { t: 'p', c: CPU };
+        b[at(x, 6)] = { t: 'p', c: YOU };
+        b[at(x, 7)] = { t, c: YOU };
+      });
+      return { b, turn, castle: 15, ep: -1, half: 0 };
+    }
+
+    function attacked(b, sq, by) {
+      const x = sq % 8;
+      const y = Math.floor(sq / 8);
+      for (const dx of [-1, 1]) {
+        const px = x + dx;
+        const py = y - fwd(by);
+        const p = on(px, py) && b[at(px, py)];
+        if (p && p.c === by && p.t === 'p') return true;
+      }
+      for (const [dx, dy] of KNIGHT) {
+        const p = on(x + dx, y + dy) && b[at(x + dx, y + dy)];
+        if (p && p.c === by && p.t === 'n') return true;
+      }
+      for (const [dx, dy] of KING) {
+        const p = on(x + dx, y + dy) && b[at(x + dx, y + dy)];
+        if (p && p.c === by && p.t === 'k') return true;
+      }
+      for (const [dirs, kinds] of [[ROOK, 'rq'], [BISHOP, 'bq']]) {
+        for (const [dx, dy] of dirs) {
+          let nx = x + dx;
+          let ny = y + dy;
+          while (on(nx, ny)) {
+            const p = b[at(nx, ny)];
+            if (p) {
+              if (p.c === by && kinds.includes(p.t)) return true;
+              break;
+            }
+            nx += dx;
+            ny += dy;
+          }
+        }
+      }
+      return false;
+    }
+
+    const kingOf = (b, c) => b.findIndex(p => p && p.t === 'k' && p.c === c);
+    const inCheck = s => attacked(s.b, kingOf(s.b, s.turn), 3 - s.turn);
+
+    function pseudo(s) {
+      const { b, turn: c } = s;
+      const out = [];
+      const add = (f, t, extra) => out.push({ f, t, ...extra });
+      b.forEach((p, f) => {
+        if (!p || p.c !== c) return;
+        const x = f % 8;
+        const y = Math.floor(f / 8);
+        if (p.t === 'p') {
+          const d = fwd(c);
+          const last = home(3 - c);
+          const push = (t, extra = {}) => add(f, t, Math.floor(t / 8) === last ? { ...extra, promo: true } : extra);
+          if (on(x, y + d) && !b[at(x, y + d)]) {
+            push(at(x, y + d));
+            if (y === home(c) + d && !b[at(x, y + 2 * d)]) add(f, at(x, y + 2 * d), { double: true });
+          }
+          for (const dx of [-1, 1]) {
+            if (!on(x + dx, y + d)) continue;
+            const t = at(x + dx, y + d);
+            if (b[t] && b[t].c !== c) push(t);
+            else if (t === s.ep) add(f, t, { ep: true });
+          }
+          return;
+        }
+        if (p.t === 'n' || p.t === 'k') {
+          for (const [dx, dy] of p.t === 'n' ? KNIGHT : KING) {
+            if (!on(x + dx, y + dy)) continue;
+            const t = at(x + dx, y + dy);
+            if (!b[t] || b[t].c !== c) add(f, t);
+          }
+        } else {
+          const dirs = p.t === 'r' ? ROOK : p.t === 'b' ? BISHOP : [...ROOK, ...BISHOP];
+          for (const [dx, dy] of dirs) {
+            let nx = x + dx;
+            let ny = y + dy;
+            while (on(nx, ny)) {
+              const t = at(nx, ny);
+              if (b[t]) {
+                if (b[t].c !== c) add(f, t);
+                break;
+              }
+              add(f, t);
+              nx += dx;
+              ny += dy;
+            }
+          }
+        }
+        if (p.t === 'k' && f === at(4, home(c)) && !attacked(b, f, 3 - c)) {
+          const r = home(c);
+          const rook = x2 => b[at(x2, r)] && b[at(x2, r)].t === 'r' && b[at(x2, r)].c === c;
+          if (s.castle & RIGHTS[c].k && rook(7) && !b[at(5, r)] && !b[at(6, r)] && !attacked(b, at(5, r), 3 - c) && !attacked(b, at(6, r), 3 - c)) {
+            add(f, at(6, r), { castle: 'k' });
+          }
+          if (s.castle & RIGHTS[c].q && rook(0) && !b[at(1, r)] && !b[at(2, r)] && !b[at(3, r)] && !attacked(b, at(3, r), 3 - c) && !attacked(b, at(2, r), 3 - c)) {
+            add(f, at(2, r), { castle: 'q' });
+          }
+        }
+      });
+      return out;
+    }
+
+    function apply(s, mv) {
+      const b = s.b.slice();
+      const p = b[mv.f];
+      const captured = b[mv.t];
+      b[mv.t] = mv.promo ? { t: 'q', c: p.c } : p;
+      b[mv.f] = null;
+      const r = home(p.c);
+      if (mv.ep) b[mv.t - 8 * fwd(p.c)] = null;
+      if (mv.castle === 'k') {
+        b[at(5, r)] = b[at(7, r)];
+        b[at(7, r)] = null;
+      } else if (mv.castle === 'q') {
+        b[at(3, r)] = b[at(0, r)];
+        b[at(0, r)] = null;
+      }
+      let castle = s.castle;
+      if (p.t === 'k') castle &= ~(RIGHTS[p.c].k | RIGHTS[p.c].q);
+      for (const c of [YOU, CPU]) {
+        for (const sq of [mv.f, mv.t]) {
+          if (sq === at(7, home(c))) castle &= ~RIGHTS[c].k;
+          if (sq === at(0, home(c))) castle &= ~RIGHTS[c].q;
+        }
+      }
+      return {
+        b,
+        turn: 3 - s.turn,
+        castle,
+        ep: mv.double ? (mv.f + mv.t) / 2 : -1,
+        half: p.t === 'p' || captured ? 0 : s.half + 1,
+      };
+    }
+
+    const legal = s => pseudo(s).filter(mv => isLegal(s, mv));
+    function isLegal(s, mv) {
+      const n = apply(s, mv);
+      return !attacked(n.b, kingOf(n.b, s.turn), n.turn);
+    }
+
+    function insufficient(b) {
+      const rest = b.filter(p => p && p.t !== 'k');
+      return !rest.length || (rest.length === 1 && 'nb'.includes(rest[0].t));
+    }
+
+    // Material plus small bonuses for central pieces and advanced pawns, from the computer's side.
+    function evaluate(b) {
+      let score = 0;
+      b.forEach((p, i) => {
+        if (!p) return;
+        const x = i % 8;
+        const y = Math.floor(i / 8);
+        const centre = 3.5 - Math.max(Math.abs(x - 3.5), Math.abs(y - 3.5));
+        let v = VALUE[p.t];
+        if (p.t === 'n' || p.t === 'b') v += centre * 8;
+        else if (p.t === 'p') v += Math.abs(y - (p.c === YOU ? 6 : 1)) * 6 + (x === 3 || x === 4 ? 6 : 0);
+        else if (p.t === 'q') v += centre * 3;
+        else if (p.t === 'k') v += y === home(p.c) ? 10 : 0;
+        score += p.c === CPU ? v : -v;
+      });
+      return score;
+    }
+
+    const order = (s, moves) => moves.sort((a, b2) => {
+      const gain = mv => (s.b[mv.t] ? VALUE[s.b[mv.t].t] * 10 - VALUE[s.b[mv.f].t] : 0) + (mv.promo ? 8000 : 0);
+      return gain(b2) - gain(a);
+    });
+    const relative = s => (s.turn === CPU ? 1 : -1) * evaluate(s.b);
+
+    function quiesce(s, alpha, beta, qd) {
+      const stand = relative(s);
+      if (stand >= beta) return stand;
+      if (stand > alpha) alpha = stand;
+      if (qd >= 4) return alpha;
+      for (const mv of order(s, pseudo(s).filter(mv => (s.b[mv.t] || mv.promo) && isLegal(s, mv)))) {
+        const v = -quiesce(apply(s, mv), -beta, -alpha, qd + 1);
+        if (v >= beta) return v;
+        if (v > alpha) alpha = v;
+      }
+      return alpha;
+    }
+
+    function search(s, depth, alpha, beta, ply) {
+      const moves = legal(s);
+      if (!moves.length) return inCheck(s) ? -MATE + ply : 0;
+      if (s.half >= 100) return 0;
+      if (depth === 0) return quiesce(s, alpha, beta, 0);
+      for (const mv of order(s, moves)) {
+        const v = -search(apply(s, mv), depth - 1, -beta, -alpha, ply + 1);
+        if (v >= beta) return v;
+        if (v > alpha) alpha = v;
+      }
+      return alpha;
+    }
+
+    const keyOf = s => s.b.map(p => (p ? p.c + p.t : '.')).join('') + s.turn + s.castle + s.ep;
+
+    DG.register({
+      id: 'chess',
+      name: 'Chess',
+      category: 'Strategy',
+      description: 'Checkmate the computer\u2019s king.',
+      help: 'Tap one of your pieces (bottom), then a marked square to move it. All the normal rules apply, including castling, en passant and promotion (pawns become queens). Your pieces are shown to your weaker eye and the computer\u2019s to your stronger eye.',
+      width: 8,
+      height: 8,
+      buttons: ['left', 'up', 'down', 'right', 'action'],
+      labels: { action: 'Select' },
+      create(api) {
+        const g = {};
+        const cur = { x: 4, y: 6 };
+        let state;
+        let moves = [];
+        let sel = -1;
+        let last = null;
+        let seen;
+        let showCursor = false;
+        let drawReason = '';
+        const m = match(g, () => {
+          state = initial(m.starter);
+          moves = legal(state);
+          sel = -1;
+          last = null;
+          seen = new Map([[keyOf(state), 1]]);
+          drawReason = '';
+        });
+
+        function play(mv) {
+          state = apply(state, mv);
+          last = mv;
+          sel = -1;
+          const key = keyOf(state);
+          seen.set(key, (seen.get(key) || 0) + 1);
+          moves = legal(state);
+          if (!moves.length) {
+            drawReason = inCheck(state) ? '' : 'Stalemate';
+            m.finish(inCheck(state) ? 3 - state.turn : 'draw');
+          } else if (state.half >= 100 || insufficient(state.b) || seen.get(key) >= 3) {
+            drawReason = state.half >= 100 ? '50-move rule' : insufficient(state.b) ? 'Not enough pieces' : 'Repetition';
+            m.finish('draw');
+          } else {
+            m.next(state.turn);
+          }
+        }
+
+        function cpuMove() {
+          if (api.difficulty === 0 && Math.random() < 0.35) {
+            play(util.pick(moves));
+            return;
+          }
+          const depth = [1, 2, 3][api.difficulty];
+          let alpha = -Infinity;
+          let best = moves[0];
+          // Shuffling before the stable sort varies the choice between equal moves without upsetting the search.
+          for (const mv of order(state, util.shuffle(moves.slice()))) {
+            const v = -search(apply(state, mv), depth - 1, -Infinity, -alpha, 1);
+            if (v > alpha) {
+              alpha = v;
+              best = mv;
+            }
+          }
+          play(best);
+        }
+
+        function choose(sq) {
+          if (!m.canPlay()) return;
+          const mv = sel >= 0 && moves.find(q => q.f === sel && q.t === sq);
+          if (mv) {
+            play(mv);
+            return;
+          }
+          const p = state.b[sq];
+          sel = p && p.c === YOU && sel !== sq ? sq : -1;
+        }
+
+        g.update = dt => m.update(dt, cpuMove);
+        g.pointer = (type, x, y) => {
+          if (type !== 'down' || !on(Math.floor(x), Math.floor(y))) return;
+          showCursor = false;
+          choose(at(Math.floor(x), Math.floor(y)));
+        };
+        g.action = a => {
+          showCursor = true;
+          if (!moveCursor(cur, a, 8, 8) && a === 'action') choose(at(cur.x, cur.y));
+        };
+
+        function piece(rd, p, x, y) {
+          const target = p.c === YOU ? 'amb' : 'fellow';
+          const col = p.c === YOU ? [255, 210, 120] : [140, 190, 255];
+          if (p.t === 'p') {
+            rd.circle(x + 0.5, y + 0.36, 0.13, target, col);
+            rd.poly([x + 0.42, y + 0.48, x + 0.58, y + 0.48, x + 0.7, y + 0.8, x + 0.3, y + 0.8], target, col);
+          } else {
+            rd.text(GLYPH[p.t], x + 0.5, y + 0.56, 0.78, target, col);
+          }
+        }
+
+        g.draw = rd => {
+          for (let y = 0; y < 8; y++) for (let x = 0; x < 8; x++) if ((x + y) % 2) rd.rect(x, y, 1, 1, 'both', WHITE, 0.07);
+          if (last) for (const sq of [last.f, last.t]) rd.rect(sq % 8, Math.floor(sq / 8), 1, 1, 'both', [255, 230, 120], 0.12);
+          if (inCheck(state)) {
+            const k = kingOf(state.b, state.turn);
+            rd.ring((k % 8) + 0.5, Math.floor(k / 8) + 0.5, 0.46, 0.07, 'both', [255, 90, 90], 0.9);
+          }
+          state.b.forEach((p, i) => { if (p) piece(rd, p, i % 8, Math.floor(i / 8)); });
+          if (sel >= 0) {
+            rd.box((sel % 8) + 0.04, Math.floor(sel / 8) + 0.04, 0.92, 0.92, 0.06, 'both', WHITE, 0.9);
+            for (const mv of moves) {
+              if (mv.f !== sel) continue;
+              const tx = (mv.t % 8) + 0.5;
+              const ty = Math.floor(mv.t / 8) + 0.5;
+              if (state.b[mv.t]) rd.ring(tx, ty, 0.42, 0.05, 'both', WHITE, 0.7);
+              else rd.circle(tx, ty, 0.12, 'both', WHITE, 0.7);
+            }
+          }
+          if (showCursor) rd.box(cur.x + 0.08, cur.y + 0.08, 0.84, 0.84, 0.04, 'both', WHITE, 0.6);
+        };
+        g.hud = () => {
+          const status = m.result === 'draw' && drawReason ? `Draw \u2013 ${drawReason}` : !m.result && inCheck(state) ? `Check! ${m.hud()[0]}` : m.hud()[0];
+          return [status, `Won ${m.wins}`, `Lost ${m.losses}`, `Draws ${m.draws}`];
+        };
+        m.start();
+        return g;
+      },
+    });
+  }
 })();

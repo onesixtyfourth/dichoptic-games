@@ -11,7 +11,7 @@ keywords:
 
 Games on your phone, set up as dichoptic exercises. Each eye sees a different part of the game, so the two eyes have to work together to play.
 
-There are 48 games in four groups (arcade, puzzles, strategy and words), so you can switch between them to keep sessions varied.
+There are 49 games in four groups (arcade, puzzles, strategy and words), so you can switch between them to keep sessions varied.
 
 > [!IMPORTANT]
 > Play now at **<https://onesixtyfourth.github.io/dichoptic-games/>**
@@ -33,7 +33,7 @@ Every game has its own page with a full description, how to play, controls, what
 |--------------------------------------|-------|------------------------------------------------------|
 | [Arcade](docs/arcade/README.md)      | 17    | Fast, real-time games where you react to moving objects |
 | [Puzzles](docs/puzzles/README.md)    | 18    | Thinking games played at your own pace               |
-| [Strategy](docs/strategy/README.md)  | 9     | Board and card games against the computer            |
+| [Strategy](docs/strategy/README.md)  | 10    | Board and card games against the computer            |
 | [Words](docs/words/README.md)        | 4     | Letter and word games with themed word lists         |
 
 ### Arcade
@@ -46,7 +46,7 @@ Every game has its own page with a full description, how to play, controls, what
 
 ### Strategy
 
-[Tic Tac Toe](docs/strategy/tic-tac-toe.md), [Four in a Row](docs/strategy/four-in-a-row.md), [Gomoku](docs/strategy/gomoku.md), [Solitaire](docs/strategy/solitaire.md), [Reversi](docs/strategy/reversi.md), [Checkers](docs/strategy/checkers.md), [Battleships](docs/strategy/battleships.md), [Dots and Boxes](docs/strategy/dots-and-boxes.md), [Mancala](docs/strategy/mancala.md)
+[Tic Tac Toe](docs/strategy/tic-tac-toe.md), [Four in a Row](docs/strategy/four-in-a-row.md), [Gomoku](docs/strategy/gomoku.md), [Solitaire](docs/strategy/solitaire.md), [Reversi](docs/strategy/reversi.md), [Checkers](docs/strategy/checkers.md), [Battleships](docs/strategy/battleships.md), [Dots and Boxes](docs/strategy/dots-and-boxes.md), [Mancala](docs/strategy/mancala.md), [Chess](docs/strategy/chess.md)
 
 ### Words
 
