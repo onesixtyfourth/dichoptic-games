@@ -29,6 +29,7 @@ Arcade games are fast and keep both eyes busy. The moving things you have to rea
 | [Chaser](chaser.md)                   | Collect sparks in a maze while dodging chasers      | Chasers and sparks           | You and the maze          |
 | [Eclipse Runner](eclipse-runner.md)   | Jump between two circular tracks to dodge blocks    | Blocks                       | You                       |
 | [Bouncer](bouncer.md)                 | Slide platforms so the ball drops through the gaps  | Ball and red sections        | Platforms                 |
+| [Pinball](pinball.md)                 | Flip the ball around the table and avoid the drain  | Ball                         | The table and flippers    |
 
 ## Good to know
 

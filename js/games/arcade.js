@@ -1712,4 +1712,256 @@
       return g;
     },
   });
+
+  {
+    const W = 10;
+    const H = 16;
+    const R = 0.22;
+    const LANE_X = 9.0;
+    const GATE_Y = 4.6;
+    const WALLS = [
+      [0.3, 16, 0.3, 4.7],
+      [9.7, 4.7, 9.7, 16],
+      [LANE_X, 16, LANE_X, GATE_Y],
+      [LANE_X, 15.6, 9.7, 15.6],
+      [0.3, 11.8, 2.8, 13.9],
+      [LANE_X, 11.8, 7.2, 13.9],
+      [3.2, 0.9, 3.2, 1.9],
+      [4.4, 0.9, 4.4, 1.9],
+      [5.6, 0.9, 5.6, 1.9],
+      [6.8, 0.9, 6.8, 1.9],
+    ];
+    for (let i = 0; i < 16; i++) {
+      const a1 = Math.PI + (i * Math.PI) / 16;
+      const a2 = Math.PI + ((i + 1) * Math.PI) / 16;
+      WALLS.push([5 + 4.7 * Math.cos(a1), 4.7 + 4.7 * Math.sin(a1), 5 + 4.7 * Math.cos(a2), 4.7 + 4.7 * Math.sin(a2)]);
+    }
+    const SLINGS = [[1.4, 10.4, 2.5, 12.5], [8.0, 10.4, 6.9, 12.5]];
+    const BUMPERS = [[3.4, 6.0], [6.6, 6.0], [5.0, 8.2]];
+    const BUMPER_R = 0.55;
+    const LANES = [3.8, 5.0, 6.2];
+
+    DG.register({
+      id: 'pinball',
+      name: 'Pinball',
+      category: 'Arcade',
+      description: 'Flip the ball around the table and keep it out of the drain.',
+      help: 'Tap Launch (or the table) to fire the ball. Hold the left or right side of the screen, or the Flip buttons, to raise a flipper. Light all three lanes at the top to raise your multiplier. Your weaker eye sees the ball; your stronger eye sees the table.',
+      width: W,
+      height: H,
+      buttons: ['left', 'action', 'right'],
+      labels: { left: '\u25C0 Flip', action: 'Launch', right: 'Flip \u25B6' },
+      create(api) {
+        const d = api.difficulty;
+        const GRAVITY = [7.5, 9, 10.5][d];
+        const LEN = [1.9, 1.8, 1.7][d];
+        const SAVE = [15, 8, 0][d];
+        const MAX_SPEED = 24;
+        const flippers = [
+          { px: 2.9, py: 14.2, rest: 0.5, up: -0.45, side: 'left', a: 0.5, w: 0 },
+          { px: 7.1, py: 14.2, rest: Math.PI - 0.5, up: Math.PI + 0.45, side: 'right', a: Math.PI - 0.5, w: 0 },
+        ];
+        const g = { score: 0 };
+        let ball;
+        let balls = 3;
+        let mult = 1;
+        let lit = [false, false, false];
+        let launched = 0;
+        let saved = false;
+        let still = 0;
+        let message = '';
+        let messageT = 0;
+        let flash = BUMPERS.map(() => 0);
+        let touch = { left: false, right: false };
+
+        const resetBall = () => {
+          ball = { x: 9.35, y: 15.6 - R - 0.01, vx: 0, vy: 0 };
+          launched = 0;
+        };
+        resetBall();
+
+        const inLane = () => ball.x > LANE_X && ball.y > 5;
+        const resting = () => inLane() && ball.y > 14.5 && Math.abs(ball.vy) < 0.5;
+        const add = n => { g.score += n * mult; };
+        const say = (text, t = 1.5) => {
+          message = text;
+          messageT = t;
+        };
+
+        function launch() {
+          if (!resting()) return;
+          ball.vy = -util.rand(16.5, 18);
+          launched = 0.001;
+        }
+
+        const tip = f => [f.px + Math.cos(f.a) * LEN, f.py + Math.sin(f.a) * LEN];
+
+        // Pushes the ball out of a capsule-shaped segment and bounces it off, allowing for a moving surface.
+        function collide(ax, ay, bx, by, rad, bounce, surface) {
+          const dx = bx - ax;
+          const dy = by - ay;
+          const t = util.clamp(((ball.x - ax) * dx + (ball.y - ay) * dy) / (dx * dx + dy * dy), 0, 1);
+          const px = ax + dx * t;
+          const py = ay + dy * t;
+          let nx = ball.x - px;
+          let ny = ball.y - py;
+          const dist = Math.hypot(nx, ny);
+          const min = R + rad;
+          if (dist >= min || dist === 0) return false;
+          nx /= dist;
+          ny /= dist;
+          ball.x = px + nx * min;
+          ball.y = py + ny * min;
+          const [sx, sy] = surface ? surface(px, py) : [0, 0];
+          const vn = (ball.vx - sx) * nx + (ball.vy - sy) * ny;
+          if (vn < 0) {
+            ball.vx -= (1 + bounce) * vn * nx;
+            ball.vy -= (1 + bounce) * vn * ny;
+          }
+          return { nx, ny };
+        }
+
+        function step(dt) {
+          for (const f of flippers) {
+            const held = api.held(f.side) || touch[f.side];
+            const target = held ? f.up : f.rest;
+            const speed = held ? 22 : 14;
+            const prev = f.a;
+            f.a += util.clamp(target - f.a, -speed * dt, speed * dt);
+            f.w = (f.a - prev) / dt;
+          }
+          ball.vy += GRAVITY * dt;
+          const prevY = ball.y;
+          ball.x += ball.vx * dt;
+          ball.y += ball.vy * dt;
+          // One-way gate across the top of the launch lane: balls go up through it but not back down.
+          if (ball.x > LANE_X && ball.vy > 0 && prevY + R <= GATE_Y && ball.y + R > GATE_Y) {
+            ball.y = GATE_Y - R;
+            ball.vy *= -0.3;
+            ball.vx -= 3;
+          }
+          for (const w of WALLS) collide(...w, 0, 0.45);
+          SLINGS.forEach(s => {
+            const hit = collide(...s, 0.06, 0.4);
+            if (hit) {
+              ball.vx += hit.nx * 5;
+              ball.vy += hit.ny * 5;
+              add(10);
+            }
+          });
+          for (const f of flippers) {
+            const [tx, ty] = tip(f);
+            collide(f.px, f.py, tx, ty, 0.12, 0.25, (px, py) => [-f.w * (py - f.py), f.w * (px - f.px)]);
+          }
+          BUMPERS.forEach(([bx, by], i) => {
+            let nx = ball.x - bx;
+            let ny = ball.y - by;
+            const dist = Math.hypot(nx, ny);
+            if (dist >= BUMPER_R + R || dist === 0) return;
+            nx /= dist;
+            ny /= dist;
+            ball.x = bx + nx * (BUMPER_R + R);
+            ball.y = by + ny * (BUMPER_R + R);
+            const vn = ball.vx * nx + ball.vy * ny;
+            if (vn < 0) {
+              ball.vx -= 2 * vn * nx;
+              ball.vy -= 2 * vn * ny;
+            }
+            ball.vx += nx * 7;
+            ball.vy += ny * 7;
+            flash[i] = 0.2;
+            add(100);
+          });
+          const sp = Math.hypot(ball.vx, ball.vy);
+          if (sp > MAX_SPEED) {
+            ball.vx *= MAX_SPEED / sp;
+            ball.vy *= MAX_SPEED / sp;
+          }
+          if (ball.y > 0.9 && ball.y < 1.9) {
+            LANES.forEach((lx, i) => {
+              if (!lit[i] && Math.abs(ball.x - lx) < 0.5) {
+                lit[i] = true;
+                add(50);
+                if (lit.every(Boolean)) {
+                  add(500);
+                  mult = Math.min(5, mult + 1);
+                  lit = [false, false, false];
+                  say(`Multiplier \u00D7${mult}`);
+                }
+              }
+            });
+          }
+        }
+
+        function drain() {
+          if (launched && launched < SAVE && !saved) {
+            saved = true;
+            say('Ball saved');
+            resetBall();
+            return;
+          }
+          saved = false;
+          balls--;
+          mult = 1;
+          lit = [false, false, false];
+          if (balls <= 0) {
+            api.gameOver(`Game over \u2013 score ${g.score}`);
+            return;
+          }
+          say('Ball lost');
+          resetBall();
+        }
+
+        g.action = a => {
+          if (a === 'action' || a === 'up') launch();
+        };
+        g.pointer = (type, x) => {
+          if (type === 'down') {
+            if (resting()) launch();
+            else touch[x < W / 2 ? 'left' : 'right'] = true;
+          } else if (type === 'up') {
+            touch = { left: false, right: false };
+          }
+        };
+        g.update = dt => {
+          messageT = Math.max(0, messageT - dt);
+          flash = flash.map(f => Math.max(0, f - dt));
+          if (launched) launched += dt;
+          const n = Math.ceil(dt / 0.002);
+          for (let i = 0; i < n; i++) step(dt / n);
+          if (ball.y > H + 0.5) {
+            drain();
+            return;
+          }
+          // Nudge a ball that has come to rest somewhere on the table.
+          if (!inLane() && Math.hypot(ball.vx, ball.vy) < 0.3) {
+            still += dt;
+            if (still > 2) {
+              ball.vx += util.rand(-3, 3);
+              ball.vy -= 3;
+              still = 0;
+            }
+          } else {
+            still = 0;
+          }
+        };
+        g.draw = rd => {
+          rd.lines(WALLS.flat(), 0.08, 'fellow', [180, 200, 255], 0.7);
+          rd.line(LANE_X, GATE_Y, 9.7, GATE_Y, 0.04, 'fellow', [180, 200, 255], 0.35);
+          rd.lines(SLINGS.flat(), 0.14, 'fellow', [255, 150, 80]);
+          BUMPERS.forEach(([bx, by], i) => {
+            rd.ring(bx, by, BUMPER_R - 0.05, 0.1, 'fellow', [120, 220, 255]);
+            if (flash[i] > 0) rd.circle(bx, by, BUMPER_R - 0.15, 'fellow', [120, 220, 255], 0.8);
+          });
+          LANES.forEach((lx, i) => rd.circle(lx, 2.4, 0.14, 'fellow', [255, 220, 80], lit[i] ? 1 : 0.25));
+          for (const f of flippers) rd.line(f.px, f.py, ...tip(f), 0.26, 'fellow', [255, 200, 80]);
+          rd.circle(ball.x, ball.y, R, 'amb', WHITE);
+          if (resting()) rd.text('Tap to launch', W / 2, 9.8, 0.55, 'both', WHITE, 0.7);
+          if (messageT > 0) rd.text(message, W / 2, 10.8, 0.6, 'both', WHITE, Math.min(1, messageT));
+        };
+        g.hud = () => [`Score ${g.score}`, `Ball ${4 - balls}/3`, ...(mult > 1 ? [`\u00D7${mult}`] : [])];
+        return g;
+      },
+    });
+  }
 })();

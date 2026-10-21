@@ -11,7 +11,7 @@ keywords:
 
 Games on your phone, set up as dichoptic exercises. Each eye sees a different part of the game, so the two eyes have to work together to play.
 
-There are 50 games in four groups (arcade, puzzles, strategy and words), so you can switch between them to keep sessions varied.
+There are 51 games in four groups (arcade, puzzles, strategy and words), so you can switch between them to keep sessions varied.
 
 > [!IMPORTANT]
 > Play now at **<https://onesixtyfourth.github.io/dichoptic-games/>**
@@ -31,14 +31,14 @@ Every game has its own page with a full description, how to play, controls, what
 
 | Category                             | Games | What they're like                                    |
 |--------------------------------------|-------|------------------------------------------------------|
-| [Arcade](docs/arcade/README.md)      | 17    | Fast, real-time games where you react to moving objects |
+| [Arcade](docs/arcade/README.md)      | 18    | Fast, real-time games where you react to moving objects |
 | [Puzzles](docs/puzzles/README.md)    | 18    | Thinking games played at your own pace               |
 | [Strategy](docs/strategy/README.md)  | 11    | Board and card games against the computer            |
 | [Words](docs/words/README.md)        | 4     | Letter and word games with themed word lists         |
 
 ### Arcade
 
-[Blocks](docs/arcade/blocks.md), [Snake](docs/arcade/snake.md), [Brick Breaker](docs/arcade/brick-breaker.md), [Table Tennis](docs/arcade/table-tennis.md), [Flap](docs/arcade/flap.md), [Runner](docs/arcade/runner.md), [Traffic Racer](docs/arcade/traffic-racer.md), [Space Shooter](docs/arcade/space-shooter.md), [Bubble Pop](docs/arcade/bubble-pop.md), [Lane Dash](docs/arcade/lane-dash.md), [Whack-a-Mole](docs/arcade/whack-a-mole.md), [Asteroids](docs/arcade/asteroids.md), [Missile Defence](docs/arcade/missile-defence.md), [Shape Hero](docs/arcade/shape-hero.md), [Chaser](docs/arcade/chaser.md), [Eclipse Runner](docs/arcade/eclipse-runner.md), [Bouncer](docs/arcade/bouncer.md)
+[Blocks](docs/arcade/blocks.md), [Snake](docs/arcade/snake.md), [Brick Breaker](docs/arcade/brick-breaker.md), [Table Tennis](docs/arcade/table-tennis.md), [Flap](docs/arcade/flap.md), [Runner](docs/arcade/runner.md), [Traffic Racer](docs/arcade/traffic-racer.md), [Space Shooter](docs/arcade/space-shooter.md), [Bubble Pop](docs/arcade/bubble-pop.md), [Lane Dash](docs/arcade/lane-dash.md), [Whack-a-Mole](docs/arcade/whack-a-mole.md), [Asteroids](docs/arcade/asteroids.md), [Missile Defence](docs/arcade/missile-defence.md), [Shape Hero](docs/arcade/shape-hero.md), [Chaser](docs/arcade/chaser.md), [Eclipse Runner](docs/arcade/eclipse-runner.md), [Bouncer](docs/arcade/bouncer.md), [Pinball](docs/arcade/pinball.md)
 
 ### Puzzles
 
