@@ -424,4 +424,249 @@
       return g;
     },
   });
+
+  DG.register({
+    id: 'solitaire',
+    name: 'Solitaire',
+    category: 'Strategy',
+    description: 'Build each suit up from Ace to King.',
+    help: 'Tap a card, then tap where it should go. Tap a selected card again to send it somewhere it fits. Tap the deck (or Draw) to turn cards over, and Auto to send cards to the foundations. Red cards are shown to your weaker eye and black cards to your stronger eye.',
+    width: 7,
+    height: 11,
+    buttons: ['action', 'alt'],
+    labels: { action: 'Draw', alt: 'Auto' },
+    lowerIsBetter: true,
+    create(api) {
+      const SUITS = ['\u2660', '\u2665', '\u2666', '\u2663'];
+      const RANKS = ['', 'A', '2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K'];
+      const CW = 0.9;
+      const CH = 1.25;
+      const TOP = 1.6;
+      const H = 11;
+      const drawCount = api.difficulty === 2 ? 3 : 1;
+      const red = c => c.s === 1 || c.s === 2;
+      const g = {};
+      const deck = [];
+      for (let s = 0; s < 4; s++) for (let r = 1; r <= 13; r++) deck.push({ s, r, up: false });
+      util.shuffle(deck);
+      const tab = [[], [], [], [], [], [], []];
+      for (let i = 0; i < 7; i++) for (let j = i; j < 7; j++) tab[j].push(deck.pop());
+      tab.forEach(p => { p[p.length - 1].up = true; });
+      const found = [[], [], [], []];
+      let stock = deck;
+      let waste = [];
+      let sel = null;
+      let moves = 0;
+      let t = 0;
+
+      function offsets(pile) {
+        const down = pile.filter(c => !c.up).length;
+        let dDown = 0.25;
+        let dUp = 0.42;
+        const need = down * dDown + Math.max(0, pile.length - down - 1) * dUp;
+        const avail = H - TOP - CH - 0.1;
+        if (need > avail) {
+          dDown *= avail / need;
+          dUp *= avail / need;
+        }
+        const ys = [];
+        let y = TOP;
+        for (const c of pile) {
+          ys.push(y);
+          y += c.up ? dUp : dDown;
+        }
+        return ys;
+      }
+
+      function hit(x, y) {
+        const col = Math.floor(x);
+        if (col < 0 || col > 6) return null;
+        if (y < TOP - 0.1) {
+          if (y > CH + 0.1) return null;
+          if (col === 0) return { area: 'stock' };
+          if (col === 1) return { area: 'waste' };
+          return col >= 3 ? { area: 'found', i: col - 3 } : null;
+        }
+        const ys = offsets(tab[col]);
+        for (let i = tab[col].length - 1; i >= 0; i--) {
+          if (y >= ys[i] && y <= ys[i] + CH) return { area: 'tab', i: col, idx: i };
+        }
+        return { area: 'tab', i: col, idx: -1 };
+      }
+
+      function cardsOf(s) {
+        if (s.area === 'waste') return waste.slice(-1);
+        if (s.area === 'found') return found[s.i].slice(-1);
+        return s.idx >= 0 ? tab[s.i].slice(s.idx) : [];
+      }
+
+      function removeFrom(s, n) {
+        if (s.area === 'waste') waste.pop();
+        else if (s.area === 'found') found[s.i].pop();
+        else {
+          const p = tab[s.i];
+          p.splice(p.length - n, n);
+          if (p.length) p[p.length - 1].up = true;
+        }
+      }
+
+      const top = p => p[p.length - 1];
+      const canFound = (c, f) => (f.length ? top(f).s === c.s && top(f).r === c.r - 1 : c.r === 1);
+      const canTab = (c, p) => (p.length ? top(p).up && top(p).r === c.r + 1 && red(top(p)) !== red(c) : c.r === 13);
+
+      function checkWin() {
+        if (found.every(f => f.length === 13)) {
+          g.score = Math.round(t);
+          api.gameOver(`Solved in ${util.formatTime(t * 1000)} with ${moves} moves!`);
+        }
+      }
+
+      function moveTo(s, dest) {
+        const cards = cardsOf(s);
+        if (!cards.length) return false;
+        if (dest.area === 'found') {
+          const f = found[dest.i];
+          if (cards.length !== 1 || !canFound(cards[0], f)) return false;
+          removeFrom(s, 1);
+          f.push(cards[0]);
+        } else {
+          if (s.area === 'tab' && s.i === dest.i) return false;
+          const p = tab[dest.i];
+          if (!canTab(cards[0], p)) return false;
+          removeFrom(s, cards.length);
+          p.push(...cards);
+        }
+        moves++;
+        checkWin();
+        return true;
+      }
+
+      function smart(s) {
+        if (cardsOf(s).length === 1) {
+          for (let i = 0; i < 4; i++) if (moveTo(s, { area: 'found', i })) return;
+        }
+        for (let i = 0; i < 7; i++) if (moveTo(s, { area: 'tab', i })) return;
+      }
+
+      function drawStock() {
+        sel = null;
+        if (!stock.length) {
+          stock = waste.reverse().map(c => ({ ...c, up: false }));
+          waste = [];
+          return;
+        }
+        for (let k = 0; k < drawCount && stock.length; k++) {
+          const c = stock.pop();
+          c.up = true;
+          waste.push(c);
+        }
+        moves++;
+      }
+
+      function autoAll() {
+        sel = null;
+        let moved = true;
+        while (moved) {
+          moved = false;
+          const sources = [{ area: 'waste' }, ...tab.map((p, i) => ({ area: 'tab', i, idx: p.length - 1 }))];
+          for (const s of sources) {
+            if (cardsOf(s).length !== 1) continue;
+            for (let i = 0; i < 4 && !moved; i++) moved = moveTo(s, { area: 'found', i });
+          }
+        }
+      }
+
+      const sameSel = (a, b) => a.area === b.area && a.i === b.i && (a.area !== 'tab' || a.idx === b.idx);
+
+      g.update = dt => { t += dt; };
+      g.action = a => {
+        if (a === 'action') drawStock();
+        else if (a === 'alt') autoAll();
+      };
+      g.pointer = (type, x, y) => {
+        if (type !== 'down') return;
+        const h = hit(x, y);
+        if (!h) {
+          sel = null;
+          return;
+        }
+        if (h.area === 'stock') {
+          drawStock();
+          return;
+        }
+        if (sel) {
+          if (sameSel(sel, h)) {
+            smart(sel);
+            sel = null;
+            return;
+          }
+          if ((h.area === 'tab' || h.area === 'found') && moveTo(sel, { area: h.area, i: h.i })) {
+            sel = null;
+            return;
+          }
+        }
+        if (h.area === 'tab') sel = h.idx >= 0 && tab[h.i][h.idx].up ? h : null;
+        else if (h.area === 'waste') sel = waste.length ? h : null;
+        else sel = found[h.i].length ? h : null;
+      };
+
+      function face(rd, c, x, y, full) {
+        const target = red(c) ? 'amb' : 'fellow';
+        const col = red(c) ? [240, 80, 80] : [235, 235, 235];
+        if (full) {
+          rd.box(x + 0.02, y + 0.02, CW - 0.04, CH - 0.04, 0.03, 'both', WHITE, 0.3);
+          rd.text(SUITS[c.s], x + CW / 2, y + CH * 0.62, 0.55, target, col);
+        } else {
+          rd.line(x + 0.02, y + 0.02, x + CW - 0.02, y + 0.02, 0.03, 'both', WHITE, 0.3);
+        }
+        rd.text(RANKS[c.r] + SUITS[c.s], x + 0.08, y + 0.2, 0.3, target, col, 1, 'left');
+      }
+
+      // Overlapping cards only draw their visible strip, because additive drawing would show covered cards through.
+      function pile(rd, cards, x, ys) {
+        cards.forEach((c, i) => {
+          const last = i === cards.length - 1;
+          if (c.up) face(rd, c, x, ys[i], last);
+          else rd.tile(x, ys[i], CW, last ? CH : ys[i + 1] - ys[i], 'fellow', [80, 120, 200], 0.6);
+        });
+      }
+
+      g.draw = rd => {
+        const slot = x => rd.box(x + 0.04, 0.04, CW - 0.08, CH - 0.08, 0.03, 'both', WHITE, 0.2);
+        const px = col => col + (1 - CW) / 2;
+        if (stock.length) rd.tile(px(0), 0, CW, CH, 'fellow', [80, 120, 200], 0.6);
+        else {
+          slot(px(0));
+          rd.ring(px(0) + CW / 2, CH / 2, 0.22, 0.05, 'both', WHITE, 0.4);
+        }
+        if (waste.length) face(rd, top(waste), px(1), 0, true);
+        else slot(px(1));
+        found.forEach((f, i) => {
+          if (f.length) face(rd, top(f), px(i + 3), 0, true);
+          else slot(px(i + 3));
+        });
+        tab.forEach((p, col) => {
+          const ys = offsets(p);
+          if (!p.length) rd.box(px(col) + 0.04, TOP + 0.04, CW - 0.08, CH - 0.08, 0.03, 'both', WHITE, 0.2);
+          pile(rd, p, px(col), ys);
+        });
+        if (sel) {
+          let x;
+          let y0 = 0;
+          let y1 = CH;
+          if (sel.area === 'waste') x = px(1);
+          else if (sel.area === 'found') x = px(sel.i + 3);
+          else {
+            const ys = offsets(tab[sel.i]);
+            x = px(sel.i);
+            y0 = ys[sel.idx];
+            y1 = ys[ys.length - 1] + CH;
+          }
+          rd.box(x - 0.03, y0 - 0.03, CW + 0.06, y1 - y0 + 0.06, 0.07, 'both', WHITE, 0.9);
+        }
+      };
+      g.hud = () => [`Moves ${moves}`, `Time ${util.formatTime(t * 1000)}`];
+      return g;
+    },
+  });
 })();

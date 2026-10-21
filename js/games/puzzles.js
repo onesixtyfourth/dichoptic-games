@@ -559,4 +559,357 @@
       return g;
     },
   });
+
+  DG.register({
+    id: 'bubbleshooter',
+    name: 'Bubble Shooter',
+    category: 'Puzzles',
+    description: 'Fire bubbles to make groups of three or more.',
+    help: 'Aim by dragging and release to fire, or use \u25C0 \u25B6 and Fire. Three or more matching symbols pop, and anything left hanging drops. Your weaker eye sees the bubble you fire; your stronger eye sees the bubbles on the board.',
+    width: 10,
+    height: 16,
+    buttons: ['left', 'action', 'right'],
+    labels: { action: 'Fire' },
+    repeat: ['left', 'right'],
+    create(api) {
+      const COLS = 10;
+      const ROWS = 15;
+      const ROWH = Math.sqrt(3) / 2;
+      const SX = 5;
+      const SY = 15;
+      const TYPES = [4, 5, 6][api.difficulty];
+      const SHOTS = [7, 6, 5][api.difficulty];
+      const START_ROWS = [5, 6, 7][api.difficulty];
+      const COLOURS = [[240, 80, 80], [80, 200, 90], [80, 140, 255], [240, 220, 60], [200, 90, 240], [90, 220, 220]];
+      const g = { score: 0 };
+      let grid = util.grid(COLS, ROWS, -1);
+      // Toggled whenever a row is pushed in from the top, so existing rows keep their offset.
+      let shift = 0;
+      let shot = null;
+      let angle = -Math.PI / 2;
+      let aiming = false;
+      let misses = 0;
+
+      const off = r => (r + shift) % 2 === 1;
+      const ncols = r => (off(r) ? COLS - 1 : COLS);
+      const cx = (r, c) => c + 0.5 + (off(r) ? 0.5 : 0);
+      const cy = r => 0.5 + r * ROWH;
+
+      function neighbours(r, c) {
+        const list = [[r, c - 1], [r, c + 1]];
+        for (const dr of [-1, 1]) {
+          if (off(r)) list.push([r + dr, c], [r + dr, c + 1]);
+          else list.push([r + dr, c - 1], [r + dr, c]);
+        }
+        return list.filter(([nr, nc]) => nr >= 0 && nr < ROWS && nc >= 0 && nc < ncols(nr));
+      }
+
+      function flood(starts, match) {
+        const seen = new Set(starts.map(([r, c]) => `${r},${c}`));
+        const out = [...starts];
+        for (let i = 0; i < out.length; i++) {
+          for (const [nr, nc] of neighbours(out[i][0], out[i][1])) {
+            const k = `${nr},${nc}`;
+            if (!seen.has(k) && match(nr, nc)) {
+              seen.add(k);
+              out.push([nr, nc]);
+            }
+          }
+        }
+        return out;
+      }
+
+      function fillRows(n) {
+        for (let r = 0; r < n; r++) {
+          for (let c = 0; c < ncols(r); c++) grid[r][c] = util.randInt(TYPES);
+        }
+      }
+
+      const present = () => [...new Set(grid.flat().filter(v => v >= 0))];
+      const nextType = () => {
+        const p = present();
+        return p.length ? util.pick(p) : util.randInt(TYPES);
+      };
+
+      fillRows(START_ROWS);
+      let current = nextType();
+      let next = nextType();
+
+      function addRow() {
+        shift ^= 1;
+        grid.pop();
+        grid.unshift(Array(COLS).fill(-1));
+        for (let c = 0; c < ncols(0); c++) grid[0][c] = util.randInt(TYPES);
+      }
+
+      function land() {
+        let best = null;
+        let bd = Infinity;
+        for (let r = 0; r < ROWS; r++) {
+          for (let c = 0; c < ncols(r); c++) {
+            if (grid[r][c] >= 0 || (r > 0 && !neighbours(r, c).some(([nr, nc]) => grid[nr][nc] >= 0))) continue;
+            const d = Math.hypot(cx(r, c) - shot.x, cy(r) - shot.y);
+            if (d < bd) {
+              bd = d;
+              best = [r, c];
+            }
+          }
+        }
+        const type = shot.t;
+        shot = null;
+        if (!best) return;
+        const [r, c] = best;
+        grid[r][c] = type;
+        const group = flood([best], (nr, nc) => grid[nr][nc] === type);
+        if (group.length >= 3) {
+          group.forEach(([gr, gc]) => { grid[gr][gc] = -1; });
+          g.score += group.length * 10;
+          const roots = [];
+          for (let k = 0; k < ncols(0); k++) if (grid[0][k] >= 0) roots.push([0, k]);
+          const anchored = new Set(flood(roots, (nr, nc) => grid[nr][nc] >= 0).map(([ar, ac]) => `${ar},${ac}`));
+          grid.forEach((row, gr) => row.forEach((v, gc) => {
+            if (v >= 0 && !anchored.has(`${gr},${gc}`)) {
+              grid[gr][gc] = -1;
+              g.score += 20;
+            }
+          }));
+        } else if (++misses >= SHOTS) {
+          misses = 0;
+          addRow();
+        }
+        if (grid[ROWS - 1].some(v => v >= 0)) {
+          api.gameOver(`Game over \u2013 score ${g.score}`);
+          return;
+        }
+        if (!present().length) fillRows(START_ROWS);
+        const p = present();
+        if (!p.includes(current)) current = nextType();
+        if (!p.includes(next)) next = nextType();
+      }
+
+      function fire() {
+        if (shot) return;
+        shot = { x: SX, y: SY, vx: Math.cos(angle) * 18, vy: Math.sin(angle) * 18, t: current };
+        current = next;
+        next = nextType();
+      }
+
+      const aimAt = (x, y) => {
+        angle = util.clamp(Math.atan2(y - SY, x - SX), -Math.PI + 0.15, -0.15);
+      };
+
+      g.action = a => {
+        if (a === 'left') angle = Math.max(-Math.PI + 0.15, angle - 0.04);
+        else if (a === 'right') angle = Math.min(-0.15, angle + 0.04);
+        else if (a === 'action' || a === 'up') fire();
+      };
+      g.pointer = (type, x, y) => {
+        if (type === 'up') {
+          if (aiming) fire();
+          aiming = false;
+        } else if (y < SY - 0.3) {
+          aimAt(x, y);
+          aiming = true;
+        }
+      };
+      g.update = dt => {
+        if (!shot) return;
+        const steps = Math.ceil(dt / 0.004);
+        for (let i = 0; i < steps; i++) {
+          shot.x += (shot.vx * dt) / steps;
+          shot.y += (shot.vy * dt) / steps;
+          if (shot.x < 0.5) { shot.x = 0.5; shot.vx = Math.abs(shot.vx); }
+          if (shot.x > COLS - 0.5) { shot.x = COLS - 0.5; shot.vx = -Math.abs(shot.vx); }
+          const hit = shot.y <= 0.5 || grid.some((row, r) => row.some((v, c) => v >= 0 && Math.hypot(cx(r, c) - shot.x, cy(r) - shot.y) < 0.85));
+          if (hit) {
+            land();
+            return;
+          }
+        }
+      };
+
+      function bubble(rd, x, y, t, target, strength = 1) {
+        const col = COLOURS[t];
+        const s = 0.2;
+        rd.ring(x, y, 0.42, 0.07, target, col, strength);
+        if (t === 0) rd.circle(x, y, s, target, col, strength);
+        else if (t === 1) rd.poly([x, y - s * 1.2, x + s * 1.1, y + s * 0.8, x - s * 1.1, y + s * 0.8], target, col, strength);
+        else if (t === 2) rd.rect(x - s, y - s, 2 * s, 2 * s, target, col, strength);
+        else if (t === 3) rd.poly([x, y - s * 1.3, x + s * 1.1, y, x, y + s * 1.3, x - s * 1.1, y], target, col, strength);
+        else if (t === 4) rd.lines([x - s, y - s, x + s, y + s, x + s, y - s, x - s, y + s], 0.09, target, col, strength);
+        else rd.lines([x - s * 1.2, y, x + s * 1.2, y, x, y - s * 1.2, x, y + s * 1.2], 0.09, target, col, strength);
+      }
+
+      g.draw = rd => {
+        const limit = [];
+        for (let x = 0.2; x < COLS; x += 0.8) limit.push(x, cy(ROWS - 1) - 0.5, x + 0.4, cy(ROWS - 1) - 0.5);
+        rd.lines(limit, 0.04, 'both', WHITE, 0.25);
+        grid.forEach((row, r) => row.forEach((v, c) => {
+          if (v >= 0) bubble(rd, cx(r, c), cy(r), v, 'fellow');
+        }));
+        if (!shot) {
+          const dots = [];
+          for (let d = 1; d < 5; d += 0.5) dots.push(SX + Math.cos(angle) * d, SY + Math.sin(angle) * d, SX + Math.cos(angle) * (d + 0.15), SY + Math.sin(angle) * (d + 0.15));
+          rd.lines(dots, 0.08, 'amb', WHITE, 0.5);
+          bubble(rd, SX, SY, current, 'amb');
+        } else {
+          bubble(rd, shot.x, shot.y, shot.t, 'amb');
+        }
+        bubble(rd, 8.8, SY, next, 'amb', 0.5);
+      };
+      g.hud = () => [`Score ${g.score}`, `Next row in ${SHOTS - misses}`];
+      return g;
+    },
+  });
+
+  DG.register({
+    id: 'linkpairs',
+    name: 'Link Pairs',
+    category: 'Puzzles',
+    description: 'Join matching tiles with a path of up to three straight lines.',
+    help: 'Tap two matching tiles to remove them. They must be joined by a path with no more than two turns that doesn\u2019t cross other tiles (it can go around the outside). Symbols alternate between your weaker and stronger eye.',
+    width: 7,
+    height: 9,
+    buttons: ['left', 'up', 'down', 'right', 'action'],
+    labels: { action: 'Pick' },
+    repeat: ['left', 'up', 'down', 'right'],
+    lowerIsBetter: true,
+    create(api) {
+      const [W, H, K] = [[6, 8, 12], [7, 10, 16], [8, 11, 20]][api.difficulty];
+      const SYMBOLS = 'ABCDEFGHJKLMNPQRSTUVWXYZ';
+      const STEPS = [[1, 0], [-1, 0], [0, 1], [0, -1]];
+      // Tiles sit one cell in from the edge so paths can run around the outside; tile (x, y) is centred at (x + 1, y + 1).
+      const g = { width: W + 1, height: H + 1 };
+      const tiles = util.grid(W, H, null);
+      const cur = { x: 0, y: 0 };
+      const pool = [];
+      for (let i = 0; i < (W * H) / 2; i++) pool.push(SYMBOLS[i % K], SYMBOLS[i % K]);
+      util.shuffle(pool).forEach((s, i) => { tiles[Math.floor(i / W)][i % W] = s; });
+      let sel = null;
+      let path = null;
+      let pathT = 0;
+      let left = W * H;
+      let t = 0;
+      let showCursor = false;
+
+      const occupied = (px, py) => px >= 1 && py >= 1 && px <= W && py <= H && tiles[py - 1][px - 1] !== null;
+      const same = (a, b) => a[0] === b[0] && a[1] === b[1];
+
+      function rays(p, target) {
+        const out = [];
+        for (const [dx, dy] of STEPS) {
+          let x = p[0] + dx;
+          let y = p[1] + dy;
+          while (x >= 0 && y >= 0 && x <= W + 1 && y <= H + 1) {
+            if (x === target[0] && y === target[1]) {
+              out.push([x, y]);
+              break;
+            }
+            if (occupied(x, y)) break;
+            out.push([x, y]);
+            x += dx;
+            y += dy;
+          }
+        }
+        return out;
+      }
+
+      function findPath(a, b) {
+        const first = rays(a, b);
+        if (first.some(c => same(c, b))) return [a, b];
+        for (const c1 of first) {
+          const second = rays(c1, b);
+          if (second.some(c => same(c, b))) return [a, c1, b];
+          for (const c2 of second) {
+            if (!same(c2, b) && rays(c2, b).some(c => same(c, b))) return [a, c1, c2, b];
+          }
+        }
+        return null;
+      }
+
+      function anyMove() {
+        const pos = {};
+        tiles.forEach((row, y) => row.forEach((s, x) => { if (s) (pos[s] ||= []).push([x + 1, y + 1]); }));
+        for (const list of Object.values(pos)) {
+          for (let i = 0; i < list.length; i++) {
+            for (let j = i + 1; j < list.length; j++) if (findPath(list[i], list[j])) return true;
+          }
+        }
+        return false;
+      }
+
+      function reshuffle() {
+        for (let tries = 0; tries < 50 && left && !anyMove(); tries++) {
+          const cells = [];
+          const syms = [];
+          tiles.forEach((row, y) => row.forEach((s, x) => {
+            if (s) {
+              cells.push([x, y]);
+              syms.push(s);
+            }
+          }));
+          util.shuffle(syms);
+          cells.forEach(([x, y], i) => { tiles[y][x] = syms[i]; });
+        }
+      }
+      reshuffle();
+
+      function choose(x, y) {
+        if (!tiles[y][x]) return;
+        if (!sel || same(sel, [x, y])) {
+          sel = sel ? null : [x, y];
+          return;
+        }
+        const [sx, sy] = sel;
+        const p = tiles[sy][sx] === tiles[y][x] && findPath([sx + 1, sy + 1], [x + 1, y + 1]);
+        if (!p) {
+          sel = [x, y];
+          return;
+        }
+        tiles[sy][sx] = tiles[y][x] = null;
+        left -= 2;
+        sel = null;
+        path = p;
+        pathT = 0.4;
+        if (!left) {
+          g.score = Math.round(t);
+          api.gameOver(`Cleared in ${util.formatTime(t * 1000)}!`);
+          return;
+        }
+        reshuffle();
+      }
+
+      g.update = dt => {
+        t += dt;
+        if (pathT > 0) pathT -= dt;
+      };
+      g.pointer = (type, x, y) => {
+        const gx = Math.floor(x - 0.5);
+        const gy = Math.floor(y - 0.5);
+        if (type !== 'down' || gx < 0 || gy < 0 || gx >= W || gy >= H) return;
+        showCursor = false;
+        choose(gx, gy);
+      };
+      g.action = a => {
+        showCursor = true;
+        if (!moveCursor(cur, a, W, H) && a === 'action') choose(cur.x, cur.y);
+      };
+      g.draw = rd => {
+        tiles.forEach((row, y) => row.forEach((s, x) => {
+          if (!s) return;
+          rd.tile(x + 0.5, y + 0.5, 1, 1, 'both', WHITE, 0.1);
+          rd.text(s, x + 1, y + 1.04, 0.6, (x + y) % 2 ? 'amb' : 'fellow', WHITE);
+        }));
+        if (sel) rd.box(sel[0] + 0.55, sel[1] + 0.55, 0.9, 0.9, 0.07, 'both', WHITE, 0.9);
+        if (showCursor) rd.box(cur.x + 0.5, cur.y + 0.5, 1, 1, 0.04, 'both', WHITE, 0.6);
+        if (path && pathT > 0) {
+          const segs = [];
+          for (let i = 0; i < path.length - 1; i++) segs.push(...path[i], ...path[i + 1]);
+          rd.lines(segs, 0.08, 'both', WHITE, 0.8);
+        }
+      };
+      g.hud = () => [`Pairs left ${left / 2}`, `Time ${util.formatTime(t * 1000)}`];
+      return g;
+    },
+  });
 })();
